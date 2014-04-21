@@ -12,5 +12,5 @@ ibvp is under the MIT license.
 
 Resources:
 
-* `wiki home page <http://wiki.tiker.net/IBVP`_
+* `wiki home page <http://wiki.tiker.net/IBVP>`_
 * `source code via git <https://github.com/inducer/igvp>`_

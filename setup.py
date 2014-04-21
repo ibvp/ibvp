@@ -15,7 +15,7 @@ def main():
     exec(compile(open(init_filename, "r").read(), init_filename, "exec"),
             version_dict)
 
-    setup(name="leap",
+    setup(name="ibvp",
           version=version_dict["VERSION_TEXT"],
           description="A data model for the description of "
           "(initial) boundary value problems, plus transformations",
