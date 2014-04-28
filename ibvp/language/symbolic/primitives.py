@@ -26,12 +26,68 @@ THE SOFTWARE.
 
 
 import pymbolic.primitives as p
+import numpy as np
 
 
 class Expression(p.Expression):
     def stringifier(self):
         from ibvp.language.symbolic.mappers import StringifyMapper
         return StringifyMapper
+
+
+# {{{ operators and binding
+
+class Operator(Expression):
+    def __call__(self, expr):
+        from pytools.obj_array import with_object_array_or_scalar
+
+        def bind_one(subexpr):
+            if p.is_zero(subexpr):
+                return subexpr
+            else:
+                return OperatorBinding(self, subexpr)
+
+        return with_object_array_or_scalar(bind_one, expr)
+
+
+class OperatorBinding(Expression):
+    def __init__(self, op, *arguments):
+        self.op = op
+        self.arguments = arguments
+
+    @property
+    def argument(self):
+        assert len(self.arguments) == 1
+        return self.arguments[0]
+
+    mapper_method = intern("map_operator_binding")
+
+    def __getinitargs__(self):
+        return self.op, self.arguments
+
+
+class Parameter(p.Variable):
+    mapper_method = intern("map_parameter")
+
+
+class Field(p.Variable):
+    mapper_method = intern("map_field")
+
+
+def make_field_vector(name, components):
+    """Return an object array of *components* subscripted
+    :class:`Variable` instances.
+
+    :param components: The number of components in the vector.
+    """
+    if isinstance(components, int):
+        components = range(components)
+
+    from pytools.obj_array import join_fields
+    vfld = Field(name)
+    return join_fields(*[vfld[i] for i in components])
+
+# }}}
 
 
 # {{{ functions
@@ -120,5 +176,66 @@ class BoundaryNormalVector(GeometryProperty):
     mapper_method = intern("map_boundary_normal")
 
 # }}}
+
+
+# {{{ time
+
+class Time(Expression):
+    mapper_method = "map_time"
+
+
+class TimeDerivativeOperator(Operator):
+    mapper_method = "map_time_derivative"
+
+d_dt = TimeDerivativeOperator()
+
+# }}}
+
+
+# {{{ spatial calculus
+
+class DerivativeOperator(Operator):
+    def __init__(self, ambient_axis):
+        self.ambient_axis = ambient_axis
+
+    mapper_method = "map_derivative"
+
+
+d_dx = DerivativeOperator(0)
+d_dy = DerivativeOperator(1)
+d_dz = DerivativeOperator(2)
+
+
+def div(expr):
+    return sum(DerivativeOperator(i)(e_i) for i, e_i in enumerate(expr))
+
+
+def grad(dim, expr):
+    from pytools.obj_array import log_shape, with_object_array_or_scalar
+    base_shape = log_shape(expr)
+
+    result = np.zeros((dim,)+base_shape, dtype=np.object)
+
+    for i in range(dim):
+        result[i] = with_object_array_or_scalar(
+                DerivativeOperator(i), expr)
+
+    return result
+
+
+def curl(expr, cross_product=None):
+    if cross_product is None:
+        from ibvp.language.symbolic.util import SubsettableCrossProduct
+        cross_product = SubsettableCrossProduct()
+
+    def three_mult(sign, op, field):
+        return sign*op(field)
+
+    return cross_product(
+            [DerivativeOperator(i) for i in range(3)],
+            expr)
+
+# }}}
+
 
 # vim: foldmethod=marker

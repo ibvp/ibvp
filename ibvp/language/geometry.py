@@ -38,9 +38,15 @@ class GeometryComponent(object):
 
     .. attribute:: boundary_names
 
-        iterable with membership test of symbolic boundary
+        iterable with membership test (e.g. a :class:`set`) of symbolic boundary
         names.
     """
+
+
+class DummyGeometryComponent(GeometryComponent):
+    def __init__(self, dim):
+        self.dim = dim
+        self.boundary_names = ["boundary"]
 
 
 class GeometryComponentFromDiscretization(GeometryComponent):

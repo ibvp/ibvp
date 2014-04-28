@@ -48,6 +48,7 @@ def main():
           packages=[
               "ibvp",
               "ibvp.language",
+              "ibvp.language.symbolic",
               ],
           install_requires=[
               "numpy>=1.5",
