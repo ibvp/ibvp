@@ -62,9 +62,10 @@ class IdentityMapperOperatorBindingBase(IdentityMapperBase):
     """
 
     def map_operator_binding(self, expr, *args, **kwargs):
-        return p.OperatorBinding(
-                self.rec(expr.op, *args, **kwargs),
-                *tuple(self.rec(arg, *args, **kwargs) for arg in expr.arguments))
+        new_op = self.rec(expr.op, *args, **kwargs)
+        return new_op(
+                *tuple(self.rec(arg, *args, **kwargs)
+                    for arg in expr.arguments))
 
 
 class IdentityMapper(OperatorBindingMixin, IdentityMapperOperatorBindingBase):
@@ -86,11 +87,27 @@ class IdentityMapper(OperatorBindingMixin, IdentityMapperOperatorBindingBase):
 
 
 class CombineMapper(CombineMapperBase):
-    pass
+    def map_operator_binding(self, expr):
+        return self.combine([
+            self.rec(expr.op), self.rec(expr.argument)])
 
 
 class WalkMapper(WalkMapperBase):
-    pass
+    def map_operator_binding(self, expr, *args):
+        if not self.visit(expr, *args):
+            return
+
+        self.rec(expr.op, *args)
+        self.rec(expr.argument, *args)
+
+    def map_time_derivative(self, expr, *args):
+        if not self.visit(expr, *args):
+            return
+
+    map_derivative = map_time_derivative
+
+    map_field = map_time_derivative
+    map_parameter = map_time_derivative
 
 # }}}
 
@@ -117,6 +134,8 @@ class StringifyMapper(StringifyMapperBase):
 
     def map_field(self, expr, enclosing_prec):
         return expr.name
+
+    map_vector_field = map_field
 
     def map_parameter(self, expr, enclosing_prec):
         return expr.name
@@ -170,6 +189,9 @@ class DistributeMapper(DistributeMapperBase):
     def map_field(self, expr):
         return expr
 
+    map_vector_field = map_field
+    map_parameter = map_field
+
 # }}}
 
 
@@ -184,9 +206,10 @@ class EvaluationMapper(EvaluationMapperBase):
     """
 
     def map_operator_binding(self, expr, *args, **kwargs):
-        return p.OperatorBinding(
-                self.rec(expr.op, *args, **kwargs),
-                *tuple(self.rec(arg, *args, **kwargs) for arg in expr.arguments))
+        new_op = self.rec(expr.op, *args, **kwargs)
+        return new_op(
+                *tuple(self.rec(arg, *args, **kwargs)
+                    for arg in expr.arguments))
 
     def map_time_derivative(self, expr):
         return expr
@@ -229,15 +252,9 @@ class Scalarizer(OperatorBindingMixin, EvaluationMapper):
             [p.NablaComponent(axis, expr.nabla_id)
                 for axis in xrange(self.ambient_dim)]))
 
-    def map_vector_variable(self, expr):
-        from pymbolic import make_sym_vector
-        num_components = expr.num_components
-
-        if num_components is None:
-            num_components = self.ambient_dim
-
-        # return MultiVector(make_sym_vector(expr.name, num_components))
-        return make_sym_vector(expr.name, self.ambient_axis)
+    def map_vector_field(self, expr):
+        # return MultiVector(make_sym_vector(expr.name, self.ambient_dim))
+        return p.make_field_vector(expr.name, self.ambient_dim)
 
     def map_div_binding(self, expr):
         rec_arg = self.rec(expr.argument)
@@ -266,6 +283,15 @@ class Scalarizer(OperatorBindingMixin, EvaluationMapper):
 
     def map_curl_binding(self, expr):
         raise NotImplementedError()
+
+    def map_numpy_array(self, expr):
+        if len(expr.shape) != 1:
+            raise ValueError("only 1D numpy arrays are supported")
+
+        from pytools.obj_array import join_fields
+        return join_fields(*[
+            self.rec(expr[i])
+            for i in range(len(expr))])
 
 # }}}
 

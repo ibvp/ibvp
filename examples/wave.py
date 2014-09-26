@@ -5,27 +5,27 @@ def main():
     u = sym.Field("u")
     f = sym.Field("f")
     c = sym.Parameter("c")
-    v = sym.make_field_vector("v", dim)
+    v = sym.VectorField("v")
 
-    wave_eqn = sym.join(
+    eqns = sym.join(
             sym.d_dt(u)
             + c * sym.div(v) - f,
 
             sym.d_dt(v)
-            + c * sym.grad(3, u)
+            + c * sym.grad(u)
             )
 
-    # Now perform a (nonsenical) transformation that multiplies all (spatial)
-    # derivatives by two.
+    print sym.pretty(eqns)
 
-    from ibvp.language.symbolic.mappers import IdentityMapper
+    from ibvp.language import IBVP
+    from ibvp.target.proteus import generate_proteus_problem_file
 
-    class SpatialDerivativeDoubler(IdentityMapper):
-        def map_derivative_binding(self, expr):
-            return 2*expr.op(expr.argument)
-
-    print sym.pretty(
-            SpatialDerivativeDoubler()(wave_eqn))
+    generate_proteus_problem_file(
+            IBVP(
+                ambient_dim=dim,
+                pde_system=eqns,
+                unknowns=[u.name, v.name],
+                ))
 
 
 if __name__ == "__main__":

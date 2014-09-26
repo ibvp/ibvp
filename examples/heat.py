@@ -15,25 +15,13 @@ def main():
 
     print sym.pretty(eqns)
 
-    # Now perform a (nonsenical) transformation that multiplies all (spatial)
-    # derivatives by two.
-
-    from ibvp.language.symbolic.mappers import (
-            Scalarizer)
-
-    scalarized_heat_eqn = Scalarizer(ambient_dim)(eqns)
-
-    print sym.pretty(scalarized_heat_eqn)
-
     from ibvp.language import IBVP
     from ibvp.target.proteus import generate_proteus_problem_file
 
     generate_proteus_problem_file(
             IBVP(
                 ambient_dim=ambient_dim,
-                pde_system=np.array([
-                    scalarized_heat_eqn
-                    ]),
+                pde_system=eqns,
                 unknowns=[u.name],
                 ))
 
