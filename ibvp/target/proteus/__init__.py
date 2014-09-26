@@ -140,7 +140,6 @@ class TransportCoefficientStorage(object):
         except KeyError:
             if len(self.potential_registry) >= self.num_equations:
                 # FIXME: Really?
-                print self.potential_registry, expr, self.num_equations
                 raise ValueError("number of potentials exhausted")
 
             i = len(self.potential_registry)
