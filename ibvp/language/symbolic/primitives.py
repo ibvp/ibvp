@@ -84,6 +84,7 @@ class Field(Expression, p.Variable):
     """A symbol representing one scalar variable with
     a dependence on time and location in domain.
     """
+
     mapper_method = intern("map_field")
 
 

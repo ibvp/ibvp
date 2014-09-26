@@ -135,14 +135,14 @@ class TransportCoefficientStorage(object):
         return len(self.scalar_unknowns)
 
     def register_potential(self, expr):
-        if len(self.potential_registry) >= self.num_equations:
-            # FIXME: Really?
-            print self.potential_registry, expr
-            raise ValueError("number of potentials exhausted")
-
         try:
             return self.potential_registry[expr]
         except KeyError:
+            if len(self.potential_registry) >= self.num_equations:
+                # FIXME: Really?
+                print self.potential_registry, expr, self.num_equations
+                raise ValueError("number of potentials exhausted")
+
             i = len(self.potential_registry)
             self.potential[i] = expr
             self.potential_registry[expr] = i
