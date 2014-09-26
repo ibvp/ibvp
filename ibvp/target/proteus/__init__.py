@@ -91,20 +91,36 @@ class TransportCoefficientStorage(object):
         self.reaction = np.zeros(neq, dtype=object)
         self.hamiltonian = np.zeros(neq, dtype=object)
 
+        self.potential_registry = {}
+
     @property
     def num_equations(self):
         return len(self.scalar_unknowns)
 
+    def register_potential(self, expr):
+        if len(self.potential_registry) >= self.num_equations:
+            # FIXME: Really?
+            print self.potential_registry, expr
+            raise ValueError("number of potentials exhausted")
 
-#class TransportCoefficientExtractor(Mapper):
-#    def __init__(self, tv_storage, outers=None):
-#        self.tv_storage = tv_storage
-#        self.outers = outers
+        try:
+            return self.potential_registry[expr]
+        except KeyError:
+            i = len(self.potential_registry)
+            self.potential[i] = expr
+            self.potential_registry[expr] = i
+            return i
 
 # }}}
 
 
 def pick_off_constants(expr):
+    """
+    :return: a tuple ``(constant, non_constant)`` that contains
+        separates out nodes constant multipliers from any other
+        nodes in *expr*
+    """
+
     if isinstance(expr, pp.Product):
         constants = []
         non_constants = []
@@ -124,6 +140,59 @@ def pick_off_constants(expr):
 
     else:
         return 1, expr
+
+
+def get_flat_factors(prod_expr):
+    assert isinstance(prod_expr, pp.Product)
+    children = []
+
+    for ch in prod_expr.children:
+        if isinstance(ch, pp.Product):
+            children.extend(get_flat_factors(ch))
+        else:
+            children.append(ch)
+
+    return children
+
+
+def is_derivative_binding(expr):
+    return (isinstance(expr, p.OperatorBinding)
+            and isinstance(expr.op, p.DerivativeOperator))
+
+
+def find_inner_deriv_and_coeff(expr):
+    if is_derivative_binding(expr):
+        return 1, expr
+    elif isinstance(expr, pp.Product):
+        factors = get_flat_factors(expr)
+
+        derivatives = []
+        nonderivatives = []
+        for f in factors:
+            if is_derivative_binding(f):
+                derivatives.append(f)
+            else:
+                nonderivatives.append(f)
+
+        if len(derivatives) > 1:
+            raise ValueError("multiplied second derivatives in '%s'"
+                    % expr)
+
+        if not derivatives:
+            # We'll only get called if there *is* a second derivative.
+            # That we can't find it by picking apart the top-level
+            # product is bad news.
+
+            raise ValueError("second derivative inside nonlinearity "
+                    "in '%s'" % expr)
+
+        derivative, = derivatives
+
+        return pp.flattened_product(nonderivatives), derivative
+    else:
+        raise ValueError("unexpected node type '%s' inside "
+                "second derivative in '%s'"
+                % (type(expr).__name__, expr))
 
 
 # {{{ supporting mappers
@@ -234,7 +303,19 @@ def generate_proteus_problem_file(bvp):
                         tc_storage.advection[i, outer_deriv_axis] += (
                                 constant * outer_deriv_argument)
                     else:
-                        raise NotImplementedError()
+                        # diffusion
+                        coeff, inner_derivative = \
+                                find_inner_deriv_and_coeff(outer_deriv_argument)
+
+                        pot_expr = inner_derivative.argument
+                        pot_index = tc_storage.register_potential(pot_expr)
+
+                        tc_storage.diffusion[
+                                i, pot_index,
+                                outer_deriv_axis,
+                                inner_derivative.op.ambient_axis] \
+                                        += coeff
+
                 else:
                     raise ValueError("unexpected operator: %s"
                             % type(term_without_constant.op).__name__)
