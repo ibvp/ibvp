@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from pytools import memoize_method
+
 
 # {{{ problems
 
@@ -51,4 +53,4 @@ class IBVP(BVP):
 
 # }}}
 
-# vim: foldmethod=m
+# vim: foldmethod=marker

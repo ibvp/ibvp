@@ -28,13 +28,17 @@ THE SOFTWARE.
 from pymbolic.mapper import (
         IdentityMapper as IdentityMapperBase,
         CombineMapper as CombineMapperBase,
+        WalkMapper as WalkMapperBase,
         )
 from pymbolic.mapper.stringifier import (
         CSESplittingStringifyMapperMixin,
         StringifyMapper as StringifyMapperBase)
 from pymbolic.mapper.evaluator import (
         EvaluationMapper as EvaluationMapperBase)
+from pymbolic.mapper.distributor import (
+        DistributeMapper as DistributeMapperBase)
 import ibvp.language.symbolic.primitives as p
+import pymbolic.primitives as pp
 from pymbolic.mapper.stringifier import PREC_NONE
 from pymbolic.geometric_algebra import MultiVector
 import numpy as np
@@ -82,6 +86,10 @@ class IdentityMapper(OperatorBindingMixin, IdentityMapperOperatorBindingBase):
 
 
 class CombineMapper(CombineMapperBase):
+    pass
+
+
+class WalkMapper(WalkMapperBase):
     pass
 
 # }}}
@@ -134,6 +142,33 @@ class PrettyStringifyMapper(
         StringifyMapper,
         ):
     pass
+
+# }}}
+
+
+# {{{ distribute mapper
+
+class DistributeMapper(DistributeMapperBase):
+    def __init__(self):
+        super(DistributeMapper, self).__init__(
+                collector=lambda expr: expr)
+
+    def map_operator_binding(self, expr):
+        rec_arg = self.rec(expr.argument)
+
+        if isinstance(expr.op, p.LinearOperator):
+            if isinstance(rec_arg, pp.Sum):
+                return pp.Sum(
+                        tuple(
+                            expr.op(term)
+                            for term in rec_arg.children))
+            else:
+                return expr.op(rec_arg)
+        else:
+            return expr.op(rec_arg)
+
+    def map_field(self, expr):
+        return expr
 
 # }}}
 

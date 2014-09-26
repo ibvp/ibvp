@@ -7,10 +7,11 @@ def main():
     ambient_dim = 2
 
     u = sym.Field("u")
+    v = sym.Field("v")
 
     eqns = np.array([
-            sym.d_dt(u)
-            - sym.div(sym.grad(u))
+            sym.d_dt(u) - sym.div(sym.grad(u-v)),
+            sym.d_dt(v) - sym.div(sym.grad(u+v)),
             ])
 
     print sym.pretty(eqns)
@@ -34,7 +35,7 @@ def main():
                 pde_system=np.array([
                     scalarized_heat_eqn
                     ]),
-                unknowns=[u.name],
+                unknowns=[u.name, v.name],
                 ))
 
 

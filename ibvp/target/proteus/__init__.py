@@ -24,6 +24,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from ibvp.language.symbolic.mappers import (
+        DistributeMapper)
+from ibvp.language.symbolic.util import pretty
+
 
 # {{{ "transport coefficent" finding
 
@@ -77,18 +81,17 @@ class TransportCoefficientStorage(object):
         return len(self.bvp.pde_system)
 
 
-class TransportCoefficientExtractor(object):
-    def __init__(self, tv_storage, outers=None):
-        self.tv_storage = tv_storage
-        self.outers = outers
+#class TransportCoefficientExtractor(Mapper):
+#    def __init__(self, tv_storage, outers=None):
+#        self.tv_storage = tv_storage
+#        self.outers = outers
 
 # }}}
 
 
 def generate_proteus_problem_file(bvp):
-    tv_storage = TransportCoefficientStorage()
-    tc_extractor = TransportCoefficientExtractor()
-    kk
-
+    distr_system = DistributeMapper()(bvp.pde_system)
+    for eqn in distr_system:
+        print pretty(eqn)
 
 #  vim: foldmethod=marker

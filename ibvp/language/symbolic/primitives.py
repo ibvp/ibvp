@@ -43,6 +43,10 @@ class Operator(Expression):
         return OperatorBinding(self, expr)
 
 
+class LinearOperator(Operator):
+    pass
+
+
 class ScalarizingOperator(Operator):
     def __call__(self, expr):
         from pytools.obj_array import with_object_array_or_scalar
@@ -199,10 +203,16 @@ class BoundaryNormalVector(GeometryProperty):
 # {{{ time
 
 class Time(Expression):
+    def __getinitargs__(self):
+        return ()
+
     mapper_method = "map_time"
 
 
-class TimeDerivativeOperator(ScalarizingOperator):
+class TimeDerivativeOperator(ScalarizingOperator, LinearOperator):
+    def __getinitargs__(self):
+        return ()
+
     mapper_method = "map_time_derivative"
 
 d_dt = TimeDerivativeOperator()
@@ -212,9 +222,12 @@ d_dt = TimeDerivativeOperator()
 
 # {{{ spatial calculus
 
-class DerivativeOperator(Operator):
+class DerivativeOperator(ScalarizingOperator, LinearOperator):
     def __init__(self, ambient_axis):
         self.ambient_axis = ambient_axis
+
+    def __getinitargs__(self):
+        return (self.ambient_axis,)
 
     mapper_method = "map_derivative"
 
@@ -224,7 +237,7 @@ d_dy = DerivativeOperator(1)
 d_dz = DerivativeOperator(2)
 
 
-class _Div(Operator):
+class _Div(LinearOperator):
     def __getinitargs__(self):
         return ()
 
@@ -232,7 +245,7 @@ class _Div(Operator):
 div = _Div()
 
 
-class _Grad(Operator):
+class _Grad(LinearOperator):
     def __getinitargs__(self):
         return ()
 
@@ -241,7 +254,7 @@ class _Grad(Operator):
 grad = _Grad()
 
 
-class _Curl(Operator):
+class _Curl(LinearOperator):
     def __getinitargs__(self):
         return ()
 
