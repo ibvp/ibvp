@@ -27,6 +27,28 @@ THE SOFTWARE.
 
 # {{{ problems
 
+class BVP(object):
+    """
+    .. attribute :: ambient_dim
 
+    .. attribute :: pde_system
+
+        A :class:`numpy.ndarray` of :class:`pymbolic.primitives.Expression`.
+
+    .. attribute:: unknowns
+
+        A list of identifiers for which a solution is desired.
+    """
+
+    def __init__(self, ambient_dim, pde_system, unknowns):
+        self.ambient_dim = ambient_dim
+        self.pde_system = pde_system
+        self.unknowns = unknowns
+
+
+class IBVP(BVP):
+    pass
 
 # }}}
+
+# vim: foldmethod=m

@@ -26,7 +26,8 @@ THE SOFTWARE.
 
 
 import pymbolic.primitives as p
-import numpy as np
+import numpy as np  # noqa
+from pymbolic.geometric_algebra import MultiVector
 
 
 class Expression(p.Expression):
@@ -38,6 +39,11 @@ class Expression(p.Expression):
 # {{{ operators and binding
 
 class Operator(Expression):
+    def __call__(self, expr):
+        return OperatorBinding(self, expr)
+
+
+class ScalarizingOperator(Operator):
     def __call__(self, expr):
         from pytools.obj_array import with_object_array_or_scalar
 
@@ -71,7 +77,19 @@ class Parameter(p.Variable):
 
 
 class Field(p.Variable):
+    """A symbol representing one scalar variable with
+    a dependence on time and location in domain.
+    """
     mapper_method = intern("map_field")
+
+
+class VectorField(p.Variable):
+    """A symbol representing one vector variable with
+    a dependence on time and location in domain.
+    """
+    # Actually, a *Multi*vector variable. Don't tell anyone.
+
+    mapper_method = intern("map_vector_field")
 
 
 def make_field_vector(name, components):
@@ -184,7 +202,7 @@ class Time(Expression):
     mapper_method = "map_time"
 
 
-class TimeDerivativeOperator(Operator):
+class TimeDerivativeOperator(ScalarizingOperator):
     mapper_method = "map_time_derivative"
 
 d_dt = TimeDerivativeOperator()
@@ -206,36 +224,92 @@ d_dy = DerivativeOperator(1)
 d_dz = DerivativeOperator(2)
 
 
-def div(expr):
-    return sum(DerivativeOperator(i)(e_i) for i, e_i in enumerate(expr))
+class _Div(Operator):
+    def __getinitargs__(self):
+        return ()
+
+    mapper_method = "map_div"
+div = _Div()
 
 
-def grad(dim, expr):
-    from pytools.obj_array import log_shape, with_object_array_or_scalar
-    base_shape = log_shape(expr)
+class _Grad(Operator):
+    def __getinitargs__(self):
+        return ()
 
-    result = np.zeros((dim,)+base_shape, dtype=np.object)
+    mapper_method = "map_grad"
 
-    for i in range(dim):
-        result[i] = with_object_array_or_scalar(
-                DerivativeOperator(i), expr)
-
-    return result
+grad = _Grad()
 
 
-def curl(expr, cross_product=None):
-    if cross_product is None:
-        from ibvp.language.symbolic.util import SubsettableCrossProduct
-        cross_product = SubsettableCrossProduct()
+class _Curl(Operator):
+    def __getinitargs__(self):
+        return ()
 
-    def three_mult(sign, op, field):
-        return sign*op(field)
+    mapper_method = "map_curl"
 
-    return cross_product(
-            [DerivativeOperator(i) for i in range(3)],
-            expr)
+curl = _Curl()
 
 # }}}
 
+
+# {{{ geometric calculus
+
+class NablaComponent(Expression):
+    def __init__(self, ambient_axis, nabla_id):
+        self.ambient_axis = ambient_axis
+        self.nabla_id = nabla_id
+
+    def __getinitargs__(self):
+        return (self.ambient_axis, self.nabla_id)
+
+    mapper_method = "map_nabla_component"
+
+
+class Nabla(Expression):
+    def __init__(self, nabla_id):
+        self.nabla_id = nabla_id
+
+    def __getinitargs__(self):
+        return (self.nabla_id,)
+
+    def __getitem__(self, index):
+        if not isinstance(index, int):
+            raise TypeError("Nabla subscript must be an integer")
+
+        return NablaComponent(index, self.nabla_id)
+
+    mapper_method = "map_nabla"
+
+
+class DerivativeSource(Expression):
+    def __init__(self, operand, nabla_id=None):
+        self.operand = operand
+        self.nabla_id = nabla_id
+
+    def __getinitargs__(self):
+        return (self.operand, self.nabla_id)
+
+    mapper_method = "map_derivative_source"
+
+
+class Derivative(object):
+    _next_id = [0]
+
+    def __init__(self):
+        self.my_id = "id%s" % self._next_id[0]
+        self._next_id[0] += 1
+
+    @property
+    def nabla(self):
+        return Nabla(self.my_id)
+
+    def __call__(self, operand):
+        if isinstance(operand, MultiVector):
+            return operand.map(
+                    lambda coeff: DerivativeSource(coeff, self.my_id))
+        else:
+            return DerivativeSource(operand, self.my_id)
+
+# }}}
 
 # vim: foldmethod=marker
