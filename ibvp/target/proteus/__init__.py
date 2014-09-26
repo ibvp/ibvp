@@ -93,6 +93,43 @@ class TransportCoefficientStorage(object):
 
         self.potential_registry = {}
 
+    def __str__(self):
+        import ibvp.sym as sym
+
+        def dump_1d(title, thing):
+            mystr = 'Nonzero %s terms\n-----------------------\n' % (title,)
+            for i, m in enumerate(thing):
+                if m:
+                    mystr += "%10d: %s\n" % (i, sym.pretty(m))
+            mystr += '\n'
+            return mystr
+
+        mystr = dump_1d("Mass", self.mass)
+        mystr += 'Nonzero Advection terms\n-----------------------\n'
+        for i, bi in enumerate(self.advection):
+            for j, bij in enumerate(bi):
+                if bij:
+                    mystr += "%5d%5d: %s\n" % (i, j, sym.pretty(bij))
+        mystr += '\n'
+
+        mystr += 'Nonzero Diffusion coefficients\n-------------------------\n'
+        for i, ai in enumerate(self.diffusion):
+            for j, aij in enumerate(ai):
+                for k, aijk in enumerate(aij):
+                    for ell, aijkell in enumerate(aijk):
+                        if aijkell:
+                            mystr += ("%5d%5d%5d%5d: %s\n"
+                                    % (i, j, k, ell, sym.pretty(aijkell)))
+
+        mystr += '\n'
+
+        mystr += dump_1d("Potential", self.potential)
+
+        mystr += dump_1d("Reaction", self.reaction)
+        mystr += dump_1d("Hamiltonian", self.hamiltonian)
+
+        return mystr
+
     @property
     def num_equations(self):
         return len(self.scalar_unknowns)
@@ -329,7 +366,6 @@ def generate_proteus_problem_file(bvp):
                 else:
                     tc_storage.reaction[i] += term
 
-
-
+    print tc_storage
 
 #  vim: foldmethod=marker
