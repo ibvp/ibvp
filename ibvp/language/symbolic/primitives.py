@@ -107,7 +107,7 @@ def make_field_vector(name, components):
 
     from pytools.obj_array import join_fields
     vfld = Field(name)
-    return join_fields(*[vfld[i] for i in components])
+    return join_fields(*[vfld.index(i) for i in components])
 
 # }}}
 
