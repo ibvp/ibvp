@@ -8,7 +8,8 @@ def main():
 
     u = sym.Field("u")
 
-    eqns = np.array([
+    from pytools.obj_array import make_obj_array
+    eqns = make_obj_array([
             sym.d_dt(u)
             - sym.div(sym.grad(u))
             ])

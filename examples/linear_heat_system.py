@@ -9,7 +9,8 @@ def main():
     u = sym.Field("u")
     v = sym.Field("v")
 
-    eqns = np.array([
+    from pytools.obj_array import make_obj_array
+    eqns = make_obj_array([
             sym.d_dt(u) - sym.div(sym.grad(u-v)),
             sym.d_dt(v) - sym.div(sym.grad(u+v)),
             ])
