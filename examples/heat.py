@@ -1,6 +1,3 @@
-import numpy as np
-
-
 def main():
     import ibvp.sym as sym
 
@@ -8,11 +5,10 @@ def main():
 
     u = sym.Field("u")
 
-    from pytools.obj_array import make_obj_array
-    eqns = make_obj_array([
+    eqns = sym.join(
             sym.d_dt(u)
             - sym.div(sym.grad(u))
-            ])
+            )
 
     print sym.pretty(eqns)
 
