@@ -343,14 +343,15 @@ def generate_proteus_problem_file(bvp):
                         coeff, inner_derivative = \
                                 find_inner_deriv_and_coeff(outer_deriv_argument)
 
-                        pot_expr = inner_derivative.argument
+                        pot_const, pot_expr = pick_off_constants(
+                                inner_derivative.argument)
                         pot_index = tc_storage.register_potential(pot_expr)
 
                         tc_storage.diffusion[
                                 i, pot_index,
                                 outer_deriv_axis,
                                 inner_derivative.op.ambient_axis] \
-                                        += coeff
+                                        += pot_const*coeff
 
                 else:
                     raise ValueError("unexpected operator: %s"
