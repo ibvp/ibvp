@@ -147,8 +147,6 @@ class TransportCoefficientStorage(object):
             self.potential_registry[expr] = i
             return i
 
-# }}}
-
 
 def pick_off_constants(expr):
     """
@@ -367,5 +365,67 @@ def generate_proteus_problem_file(bvp):
                     tc_storage.reaction[i] += term
 
     print tc_storage
+
+    # step 1, in the Python code we generate, we create
+    # references to the coefficient arrays in the dictionary
+    # that will conveniently have the same name as our pymbolic variables.
+    # This makes printing easy and has no major performance penalty.
+    defs_list = ["    %s = c[('u', %d)]" % (str(v), i)
+                 for (i, v) in enumerate(scalar_unknowns)]
+
+    import string
+    defs = string.join(defs_list, '\n')
+    print defs
+
+    # step 2,just print the nonzero entries in m, f, a, phi, and h.
+    # It should come out conveniently in numpy operator-overloaded syntax
+    mass_assign_list = ["    c[('m',%d)][:] = %s" % (i, m)
+                        for (i, m) in enumerate(tc_storage.mass) if m]
+
+    masses = string.join(mass_assign_list, '\n')
+    print masses
+
+    advect_assign_list = ["    c[('f', %d)[...,%d] = %s" % (i, j, bij)
+                          for i, bi in enumerate(tc_storage.advection)
+                          for j, bij in enumerate(bi)
+                          if bij]
+
+    print string.join(advect_assign_list, '\n')
+
+    diffusion_assign_list = ["    c[('a', %d, %d)][..., %d, %d] = %s"
+                             % (i, j, k, ell, aijkell)
+                             for i, ai in enumerate(tc_storage.diffusion)
+                             for j, aij in enumerate(ai)
+                             for k, aijk in enumerate(aij)
+                             for ell, aijkell in enumerate(aijk)
+                             if aijkell]
+
+    print string.join(diffusion_assign_list, '\n')
+
+    # fixme: we shouldn't have to print this if everything is
+    # linear in the potentials, no -- see the init method examples, which can
+    # say what each potential is without loading it.
+    potential_assign_list = ["    c[('phi', %d)][:] = %s" % (i, phi)
+                             for i, phi in enumerate(tc_storage.potential)]
+    print string.join(potential_assign_list, '\n')
+
+    reaction_assign_list = ["    c[('r', %d)][:] = %s" % (i, r)
+                            for i, r in enumerate(tc_storage.reaction)
+                            if r]
+
+    print string.join(reaction_assign_list, '\n')
+
+    hamiltonian_assign_list = ["    c[('h', %d)][:] = %s" % (i, h)
+                               for i, h in enumerate(tc_storage.hamiltonian)
+                               if h]
+
+    print string.join(hamiltonian_assign_list, '\n')
+
+    # next up, we need to take derivatives and stick them in the right place
+    # this lets us write the entire evaluation method
+
+    # Then we need to figure out the __init__ method.
+
+    # Then we can pretty-print the whole thing.
 
 #  vim: foldmethod=marker
