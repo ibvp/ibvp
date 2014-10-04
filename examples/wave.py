@@ -19,7 +19,6 @@ def main():
 
     from ibvp.language import IBVP
     from ibvp.target.proteus import generate_proteus_problem_file
-
     generate_proteus_problem_file(
             IBVP(
                 ambient_dim=dim,

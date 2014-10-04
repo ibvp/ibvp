@@ -254,7 +254,7 @@ class Scalarizer(OperatorBindingMixin, EvaluationMapper):
 
     def map_vector_field(self, expr):
         # return MultiVector(make_sym_vector(expr.name, self.ambient_dim))
-        return p.make_field_vector(expr.name, self.ambient_dim)
+        return self.rec(p.make_field_vector(expr.name, self.ambient_dim))
 
     def map_div_binding(self, expr):
         rec_arg = self.rec(expr.argument)
@@ -292,6 +292,10 @@ class Scalarizer(OperatorBindingMixin, EvaluationMapper):
         return join_fields(*[
             self.rec(expr[i])
             for i in range(len(expr))])
+
+    def map_subscript(self, expr, *args):
+        print "hithere"
+        return p.Field("%s_%s" % (expr.aggregate, expr.index))
 
 # }}}
 

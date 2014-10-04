@@ -30,6 +30,15 @@ from ibvp.language.symbolic.mappers import (
 from ibvp.language.symbolic.util import pretty
 import ibvp.language.symbolic.primitives as p
 import pymbolic.primitives as pp
+import pymbolic as pmbl
+
+
+class DMapper(pmbl.mapper.differentiator.DifferentiationMapper):
+    map_field = pmbl.mapper.differentiator.DifferentiationMapper.map_variable
+
+
+def differentiate(expr, var):
+    return DMapper(var)(expr)
 
 
 # {{{ "transport coefficent" finding
@@ -364,7 +373,7 @@ def generate_proteus_problem_file(bvp):
                 else:
                     tc_storage.reaction[i] += term
 
-    print tc_storage
+    # print tc_storage
 
     # step 1, in the Python code we generate, we create
     # references to the coefficient arrays in the dictionary
@@ -379,50 +388,84 @@ def generate_proteus_problem_file(bvp):
 
     # step 2,just print the nonzero entries in m, f, a, phi, and h.
     # It should come out conveniently in numpy operator-overloaded syntax
-    mass_assign_list = ["    c[('m',%d)][:] = %s" % (i, m)
-                        for (i, m) in enumerate(tc_storage.mass) if m]
+    unk_scalar_fields = [p.Field(psi) for psi in scalar_unknowns]
 
-    masses = string.join(mass_assign_list, '\n')
-    print masses
+    def scalar_field_assignments(holder, label):
+        assign = []
+        dassign = []
+        for (i, x) in enumerate(holder):
+            if x:
+                xstr = "c[('%s', %d)][:] = %s" % (label, i, x)
+                assign.append(xstr)
+                for j, psi in enumerate(unk_scalar_fields):
+                    dx = differentiate(x, psi)
+                    if dx:
+                        dxstr = "c[('d%s', %d, %d)][:] = %s" % (label, i, j, dx)
+                        dassign.append(dxstr)
+        return assign, dassign  
 
-    advect_assign_list = ["    c[('f', %d)[...,%d] = %s" % (i, j, bij)
-                          for i, bi in enumerate(tc_storage.advection)
-                          for j, bij in enumerate(bi)
-                          if bij]
+    mass_assigns, dmass_assigns \
+        = scalar_field_assignments(tc_storage.mass, "m")
 
-    print string.join(advect_assign_list, '\n')
+    reaction_assigns, dreaction_assigns \
+        = scalar_field_assignments(tc_storage.reaction, "r")
 
-    diffusion_assign_list = ["    c[('a', %d, %d)][..., %d, %d] = %s"
-                             % (i, j, k, ell, aijkell)
-                             for i, ai in enumerate(tc_storage.diffusion)
-                             for j, aij in enumerate(ai)
-                             for k, aijk in enumerate(aij)
-                             for ell, aijkell in enumerate(aijk)
-                             if aijkell]
+    hamiltonian_assigns, dhamiltonian_assigns \
+        = scalar_field_assignments(tc_storage.hamiltonian, "h")
 
-    print string.join(diffusion_assign_list, '\n')
+    advect_assigns = []
+    dadvect_assigns = []
+    for i, bi in enumerate(tc_storage.advection):
+        for j,bij in enumerate(bi):
+            if bij:
+                bstr = "c[('f', %d)][..., %d] = %s" % (i, j, bij)
+                advect_assigns.append(bstr)
+                for k, psi in enumerate(unk_scalar_fields):
+                    dbij = differentiate(bij, psi)
+                    if dbij:
+                        dbstr = "c[('df', %d, %d)][...,%d] = %s" % (i, k, j, dbij)
+                        dadvect_assigns.append(dbstr)
 
+    diff_assigns = []
+    ddiff_assigns = []
+
+    for i, ai in enumerate(tc_storage.diffusion):
+        for j, aij in enumerate(ai):
+            for k, aijk in enumerate(aij):
+                for ell, aijkell in enumerate(aijk):
+                    if aijkell:
+                        astr = "c[('a', %d, %d)[..., %d, %d] = %s" \
+                               % (i, j, k, ell, aijkell)
+                        diff_assigns.append(astr)
+                        for q, psi in enumerate(unk_scalar_fields):
+                            da = differentiate(aijkell, psi)
+                            if da:
+                                dastr = "c[('da',%d,%d,%d)[...,%d,%d] = %s" \
+                                        % (i, j, q, k, ell, da)
+                                ddiff_assigns.append(dastr)
+                               
     # fixme: we shouldn't have to print this if everything is
     # linear in the potentials, no -- see the init method examples, which can
     # say what each potential is without loading it.
-    potential_assign_list = ["    c[('phi', %d)][:] = %s" % (i, phi)
+    potential_assign_list = ["c[('phi', %d)][:] = %s" % (i, phi)
                              for i, phi in enumerate(tc_storage.potential)]
-    print string.join(potential_assign_list, '\n')
 
-    reaction_assign_list = ["    c[('r', %d)][:] = %s" % (i, r)
-                            for i, r in enumerate(tc_storage.reaction)
-                            if r]
+    def spacer(x): return "    " + x
 
-    print string.join(reaction_assign_list, '\n')
+    assigns = reduce(lambda x,y: x+y,
+                     [mass_assigns, dmass_assigns,
+                      advect_assigns, dadvect_assigns,
+                      diff_assigns, ddiff_assigns,
+                      reaction_assigns, dreaction_assigns,
+                      hamiltonian_assigns, dhamiltonian_assigns])
 
-    hamiltonian_assign_list = ["    c[('h', %d)][:] = %s" % (i, h)
-                               for i, h in enumerate(tc_storage.hamiltonian)
-                               if h]
+    for a in assigns:
+        print spacer(a)
 
-    print string.join(hamiltonian_assign_list, '\n')
 
-    # next up, we need to take derivatives and stick them in the right place
-    # this lets us write the entire evaluation method
+    # TODO: just need to figure out the potentials since they work 
+    # differently on assignment if they're linear and so
+    # intertwined with the __init__ method.
 
     # Then we need to figure out the __init__ method.
 
