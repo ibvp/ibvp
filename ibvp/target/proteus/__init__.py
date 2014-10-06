@@ -30,10 +30,40 @@ from ibvp.language.symbolic.mappers import (
 from ibvp.language.symbolic.util import pretty
 import ibvp.language.symbolic.primitives as p
 import pymbolic.primitives as pp
+from pymbolic.mapper.dependency import DependencyMapper as DepMapBase
+from pymbolic.mapper.differentiator import DifferentiationMapper as DBase
 import pymbolic as pmbl
 
 
-class DMapper(pmbl.mapper.differentiator.DifferentiationMapper):
+class DependencyMapper(DepMapBase):
+    def map_field(self, expr):
+        return set([expr])
+
+    def map_parameter(self, expr):
+        return set([expr])
+
+    def map_operator_binding(self, expr):
+        return self.combine([
+            self.rec(expr.op), self.rec(expr.argument)])
+
+
+def classify_dep(expr):
+    if expr:
+        deptype = 'linear'
+        dmapper = DependencyMapper()
+        deps = dmapper(expr)
+        if deps:
+            for dep in deps:
+                if isinstance(dep, p.Field):
+                    deptype = 'nonlinear'
+                    break
+    else:
+        deptype = 'constant'
+
+    return deptype
+
+
+class DMapper(DBase):
     map_field = pmbl.mapper.differentiator.DifferentiationMapper.map_variable
 
 
@@ -302,6 +332,9 @@ def generate_proteus_problem_file(bvp):
         else:
             scalar_unknowns.append(unk)
 
+    num_equations = len(scalar_unknowns)
+    ambient_dim = bvp.ambient_dim
+
     if len(set(scalar_unknowns)) != len(scalar_unknowns):
         raise ValueError("names of unknowns not unique "
                 "after scalarization")
@@ -373,9 +406,7 @@ def generate_proteus_problem_file(bvp):
                 else:
                     tc_storage.reaction[i] += term
 
-    # print tc_storage
-
-    # step 1, in the Python code we generate, we create
+    # Python code we generate, we create
     # references to the coefficient arrays in the dictionary
     # that will conveniently have the same name as our pymbolic variables.
     # This makes printing easy and has no major performance penalty.
@@ -383,16 +414,15 @@ def generate_proteus_problem_file(bvp):
                  for (i, v) in enumerate(scalar_unknowns)]
 
     import string
-    defs = string.join(defs_list, '\n')
-    print defs
+    defs = string.join(defs_list, '\n')     # noqa
 
-    # step 2,just print the nonzero entries in m, f, a, phi, and h.
-    # It should come out conveniently in numpy operator-overloaded syntax
     unk_scalar_fields = [p.Field(psi) for psi in scalar_unknowns]
 
-    def scalar_field_assignments(holder, label):
+    def process_scalar_bin(holder, label):
         assign = []
         dassign = []
+        deplabels = np.zeros((num_equations, num_equations), 'O')
+        deplabels[:] = 'none'
         for (i, x) in enumerate(holder):
             if x:
                 xstr = "c[('%s', %d)][:] = %s" % (label, i, x)
@@ -400,34 +430,72 @@ def generate_proteus_problem_file(bvp):
                 for j, psi in enumerate(unk_scalar_fields):
                     dx = differentiate(x, psi)
                     if dx:
+                        deplabels[i][j] = classify_dep(dx)
                         dxstr = "c[('d%s', %d, %d)][:] = %s" % (label, i, j, dx)
                         dassign.append(dxstr)
-        return assign, dassign  
+                    else:
+                        pass
 
-    mass_assigns, dmass_assigns \
-        = scalar_field_assignments(tc_storage.mass, "m")
+        return assign, dassign, deplabels
 
-    reaction_assigns, dreaction_assigns \
-        = scalar_field_assignments(tc_storage.reaction, "r")
+    mass_assigns, dmass_assigns, mass_deps \
+        = process_scalar_bin(tc_storage.mass, "m")
 
-    hamiltonian_assigns, dhamiltonian_assigns \
-        = scalar_field_assignments(tc_storage.hamiltonian, "h")
+    for md in mass_deps.ravel():
+        if md == 'constant':
+            raise Exception("Constant mass illegal")
+
+    reaction_assigns, dreaction_assigns, reaction_deps \
+        = process_scalar_bin(tc_storage.reaction, "r")
+
+    hamiltonian_assigns, dhamiltonian_assigns, hamiltonian_deps \
+        = process_scalar_bin(tc_storage.hamiltonian, "h")
 
     advect_assigns = []
     dadvect_assigns = []
+
+    advect_deps_p = np.zeros((num_equations, num_equations, ambient_dim), 'O')
+    advect_deps_p[:] = 'none'
+
     for i, bi in enumerate(tc_storage.advection):
-        for j,bij in enumerate(bi):
+        for j, bij in enumerate(bi):
             if bij:
                 bstr = "c[('f', %d)][..., %d] = %s" % (i, j, bij)
                 advect_assigns.append(bstr)
                 for k, psi in enumerate(unk_scalar_fields):
                     dbij = differentiate(bij, psi)
                     if dbij:
+                        advect_deps_p[i, k, j] = classify_dep(bij)
                         dbstr = "c[('df', %d, %d)][...,%d] = %s" % (i, k, j, dbij)
                         dadvect_assigns.append(dbstr)
 
+    # now "reduce" over the vector component dependences and take the worst.
+    dep2int = {'none': 0,
+               'constant':  1,
+               'linear':    2,
+               'nonlinear': 3}
+    int2dep = {0: 'none',
+               1: 'constant',
+               2: 'linear',
+               3: 'nonlinear'}
+
+    advect_deps = np.zeros((num_equations, num_equations), "O")
+    for i in range(num_equations):
+        for j in range(num_equations):
+            advect_deps[i, j] = int2dep[
+                                    reduce(max,
+                                       (dep2int[x]
+                                        for x in advect_deps_p[i, j, :]), 0)]
+
     diff_assigns = []
     ddiff_assigns = []
+    diff_deps_p = np.zeros((num_equations,
+                            num_equations,
+                            num_equations,
+                            ambient_dim,
+                            ambient_dim), 'O')
+
+    diff_deps_p[:] = 'none'
 
     for i, ai in enumerate(tc_storage.diffusion):
         for j, aij in enumerate(ai):
@@ -439,20 +507,37 @@ def generate_proteus_problem_file(bvp):
                         diff_assigns.append(astr)
                         for q, psi in enumerate(unk_scalar_fields):
                             da = differentiate(aijkell, psi)
-                            if da:
-                                dastr = "c[('da',%d,%d,%d)[...,%d,%d] = %s" \
-                                        % (i, j, q, k, ell, da)
-                                ddiff_assigns.append(dastr)
-                               
-    # fixme: we shouldn't have to print this if everything is
-    # linear in the potentials, no -- see the init method examples, which can
-    # say what each potential is without loading it.
-    potential_assign_list = ["c[('phi', %d)][:] = %s" % (i, phi)
-                             for i, phi in enumerate(tc_storage.potential)]
+                            diff_deps_p[i, j, q, k, ell] = classify_dep(da)
+                            dastr = "c[('da',%d,%d,%d)[...,%d,%d] = %s" \
+                                    % (i, j, q, k, ell, da)
+                            ddiff_assigns.append(dastr)
 
-    def spacer(x): return "    " + x
+    diff_deps = np.zeros((num_equations,
+                          num_equations,
+                          num_equations), 'O')
 
-    assigns = reduce(lambda x,y: x+y,
+    ddp = diff_deps_p.reshape((num_equations,
+                               num_equations,
+                               num_equations,
+                               ambient_dim**2))
+
+    for i in range(num_equations):
+        for j in range(num_equations):
+            for k in range(num_equations):
+                diff_deps[i, j, k] = int2dep[
+                                        reduce(max,
+                                            (dep2int[x] for x in ddp[i, j, k]), 0)]
+
+    def spacer(x):
+        return "    " + x
+
+#    print mass_deps
+#    print advect_deps
+#    print diff_deps
+#    print reaction_deps
+#    print hamiltonian_deps
+
+    assigns = reduce(lambda x, y: x+y,
                      [mass_assigns, dmass_assigns,
                       advect_assigns, dadvect_assigns,
                       diff_assigns, ddiff_assigns,
@@ -462,10 +547,10 @@ def generate_proteus_problem_file(bvp):
     for a in assigns:
         print spacer(a)
 
+    # TODO: just need to figure out the potentials since they work
 
-    # TODO: just need to figure out the potentials since they work 
-    # differently on assignment if they're linear and so
-    # intertwined with the __init__ method.
+    potential_assign_list = ["c[('phi', %d)][:] = %s" % (i, phi)   # noqa
+                             for i, phi in enumerate(tc_storage.potential) if phi]
 
     # Then we need to figure out the __init__ method.
 
