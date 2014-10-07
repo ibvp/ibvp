@@ -311,7 +311,7 @@ class MaxSubscriptFinder(WalkMapper):
 # }}}
 
 
-def generate_proteus_problem_file(bvp):
+def generate_proteus_problem_file(bvp, clsnm):
     scalarized_system = Scalarizer(bvp.ambient_dim)(bvp.pde_system)
 
     import ibvp.sym as sym
@@ -431,8 +431,9 @@ def generate_proteus_problem_file(bvp):
                     dx = differentiate(x, psi)
                     if dx:
                         deplabels[i][j] = classify_dep(dx)
-                        dxstr = "c[('d%s', %d, %d)][:] = %s" % (label, i, j, dx)
-                        dassign.append(dxstr)
+                        if deplabels[i][j] == 'nonlinear':
+                            dxstr = "c[('d%s', %d, %d)][:] = %s" % (label, i, j, dx)
+                            dassign.append(dxstr)
                     else:
                         pass
 
@@ -507,10 +508,13 @@ def generate_proteus_problem_file(bvp):
                         diff_assigns.append(astr)
                         for q, psi in enumerate(unk_scalar_fields):
                             da = differentiate(aijkell, psi)
-                            diff_deps_p[i, j, q, k, ell] = classify_dep(da)
-                            dastr = "c[('da',%d,%d,%d)[...,%d,%d] = %s" \
-                                    % (i, j, q, k, ell, da)
-                            ddiff_assigns.append(dastr)
+                            if da:
+                                diff_deps_p[i, j, q, k, ell] = classify_dep(da)
+                                dastr = "c[('da',%d,%d,%d)[...,%d,%d] = %s" \
+                                        % (i, j, q, k, ell, da)
+                                ddiff_assigns.append(dastr)
+                            else:
+                                diff_deps_p[i, j, q, k, ell] = 'constant'
 
     diff_deps = np.zeros((num_equations,
                           num_equations,
@@ -528,32 +532,81 @@ def generate_proteus_problem_file(bvp):
                                         reduce(max,
                                             (dep2int[x] for x in ddp[i, j, k]), 0)]
 
+    # potential is a bit different from other scalars.
+    potential_assigns = []
+    dpotential_assigns = []
+
+    phi_deps = np.zeros((num_equations, num_equations), 'O')
+    for i, phi in enumerate(tc_storage.potential):
+        for j, u in enumerate(unk_scalar_fields):
+            if phi == u:
+                phi_deps[i, j] = 'u'
+            else:
+                phi_str = "c[('phi', %d)] = %s" % (i, phi)
+                potential_assigns.extend(phi_str)
+                D = differentiate(phi, u)
+                if D:
+                    phi_deps[i, j] = 'nonlinear'
+                    dphi_str = "c[('dphi', %d, %d)] = %s" % (i, j, D)
+                    dpotential_assigns.extend(dphi_str)
+
     def spacer(x):
-        return "    " + x
+        return "        " + x
 
-#    print mass_deps
-#    print advect_deps
-#    print diff_deps
-#    print reaction_deps
-#    print hamiltonian_deps
+    assigns = string.join(
+                map(spacer,
+                    reduce(lambda x, y: x+y,
+                           [mass_assigns, dmass_assigns,
+                            advect_assigns, dadvect_assigns,
+                            diff_assigns, ddiff_assigns,
+                            reaction_assigns, dreaction_assigns,
+                            hamiltonian_assigns, dhamiltonian_assigns])), "\n")
 
-    assigns = reduce(lambda x, y: x+y,
-                     [mass_assigns, dmass_assigns,
-                      advect_assigns, dadvect_assigns,
-                      diff_assigns, ddiff_assigns,
-                      reaction_assigns, dreaction_assigns,
-                      hamiltonian_assigns, dhamiltonian_assigns])
+    # we dict-ify the dependencies so we can repr them.
+    def dictify(arr):
+        if len(arr.shape) == 1:
+            return dict((i, a) for (i, a) in enumerate(arr) if a and a != 'none')
+        else:
+            result = {}
+            for i, a in enumerate(arr):
+                da = dictify(a)
+                if len(da) > 0:
+                    result[i] = da
+            return result
 
-    for a in assigns:
-        print spacer(a)
+    nms = ["mass", "advection", "diffusion", "potential", "reaction", "hamiltonian"]
+    deps = [mass_deps, advect_deps, diff_deps, phi_deps,
+            reaction_deps, hamiltonian_deps]
 
-    # TODO: just need to figure out the potentials since they work
+    dep_stmnts = []
+    for (nm, d) in zip(nms, deps):
+        ddict = dictify(d)
+        dep_stmnts.append("        %s = %s" % (nm, repr(ddict)))
 
-    potential_assign_list = ["c[('phi', %d)][:] = %s" % (i, phi)   # noqa
-                             for i, phi in enumerate(tc_storage.potential) if phi]
+    dep_st = string.join(dep_stmnts, "\n")
 
-    # Then we need to figure out the __init__ method.
+    tc_class_str = """
+from proteus.TransportCoefficients import TC_base
 
-    # Then we can pretty-print the whole thing.
+
+class %s(TC_base):
+    def __init__(self):
+%s
+        variableNames=%s
+        TC_base.__init__(self,
+                         nc=%d,
+                         mass,
+                         advection,
+                         diffusion,
+                         potential,
+                         reaction,
+                         hamiltonian,
+                         variableNames)
+
+    def evaluate(self, t, c):
+%s
+""" % (clsnm, dep_st, repr(scalar_unknowns), num_equations, assigns)
+
+    print tc_class_str
 
 #  vim: foldmethod=marker

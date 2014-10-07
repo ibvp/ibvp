@@ -21,7 +21,8 @@ def main():
                 ambient_dim=ambient_dim,
                 pde_system=eqns,
                 unknowns=[u.name, v.name],
-                ))
+                ),
+            "ParabolicSystem")
 
 
 if __name__ == "__main__":

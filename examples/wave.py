@@ -24,7 +24,8 @@ def main():
                 ambient_dim=dim,
                 pde_system=eqns,
                 unknowns=[u.name, v.name],
-                ))
+                ),
+            "Wave")
 
 
 if __name__ == "__main__":
