@@ -585,6 +585,15 @@ def generate_proteus_problem_file(bvp, clsnm):
 
     dep_st = string.join(dep_stmnts, "\n")
 
+    # This is for creating, e.g. u = c[('u',0)] before we make assignments
+    # in evaluate so that we have references into the c dictionary for our
+    # data.  This makes the pretty-printed code more readable.
+    ref_list = []
+    for i, phi in enumerate(scalar_unknowns):
+        ref_list.append("%s = c[('u',%d)]" % (phi, i))
+
+    refs = string.join((spacer(x) for x in ref_list), "\n")
+
     tc_class_str = """
 from proteus.TransportCoefficients import TC_base
 
@@ -605,7 +614,8 @@ class %s(TC_base):
 
     def evaluate(self, t, c):
 %s
-""" % (clsnm, dep_st, repr(scalar_unknowns), num_equations, assigns)
+%s
+""" % (clsnm, dep_st, repr(scalar_unknowns), num_equations, refs, assigns)
 
     print tc_class_str
 
