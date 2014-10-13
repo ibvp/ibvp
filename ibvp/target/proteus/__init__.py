@@ -503,14 +503,14 @@ def generate_proteus_problem_file(bvp, clsnm):
             for k, aijk in enumerate(aij):
                 for ell, aijkell in enumerate(aijk):
                     if aijkell:
-                        astr = "c[('a', %d, %d)[..., %d, %d] = %s" \
+                        astr = "c[('a', %d, %d)][..., %d, %d] = %s" \
                                % (i, j, k, ell, aijkell)
                         diff_assigns.append(astr)
                         for q, psi in enumerate(unk_scalar_fields):
                             da = differentiate(aijkell, psi)
                             if da:
                                 diff_deps_p[i, j, q, k, ell] = classify_dep(da)
-                                dastr = "c[('da',%d,%d,%d)[...,%d,%d] = %s" \
+                                dastr = "c[('da',%d,%d,%d)][...,%d,%d] = %s" \
                                         % (i, j, q, k, ell, da)
                                 ddiff_assigns.append(dastr)
                             else:
@@ -604,13 +604,13 @@ class %s(TC_base):
         variableNames=%s
         TC_base.__init__(self,
                          nc=%d,
-                         mass,
-                         advection,
-                         diffusion,
-                         potential,
-                         reaction,
-                         hamiltonian,
-                         variableNames)
+                         mass=mass,
+                         advection=advection,
+                         diffusion=diffusion,
+                         potential=potential,
+                         reaction=reaction,
+                         hamiltonian=hamiltonian,
+                         variableNames=variableNames)
 
     def evaluate(self, t, c):
 %s
