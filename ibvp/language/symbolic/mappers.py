@@ -294,7 +294,6 @@ class Scalarizer(OperatorBindingMixin, EvaluationMapper):
             for i in range(len(expr))])
 
     def map_subscript(self, expr, *args):
-        print "hithere"
         return p.Field("%s_%s" % (expr.aggregate, expr.index))
 
 # }}}
