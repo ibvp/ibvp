@@ -135,6 +135,7 @@ class StringifyMapper(StringifyMapperBase):
     def map_field(self, expr, enclosing_prec):
         return expr.name
 
+    map_parameter = map_field
     map_vector_field = map_field
 
     def map_parameter(self, expr, enclosing_prec):

@@ -186,6 +186,8 @@ class TransportCoefficientStorage(object):
             self.potential_registry[expr] = i
             return i
 
+# }}}
+
 
 def pick_off_constants(expr):
     """
@@ -312,6 +314,8 @@ class MaxSubscriptFinder(WalkMapper):
 
 
 def generate_proteus_problem_file(bvp, clsnm):
+    # FIXME What this should really do is call a (vaporware) whole-IBVP
+    # scalarizer.
     scalarized_system = Scalarizer(bvp.ambient_dim)(bvp.pde_system)
 
     import ibvp.sym as sym
