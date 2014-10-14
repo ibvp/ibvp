@@ -1,6 +1,5 @@
 def main():
     import ibvp.sym as sym
-
     # Currently broken since the parameters are not properly
     # stringified.
     1/0
