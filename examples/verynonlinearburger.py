@@ -4,7 +4,7 @@ def main():
 
     ambient_dim = 2
 
-    p = 1.5
+    p = 1
     q = 2
     r = 2
 
@@ -13,11 +13,13 @@ def main():
     B = np.array([1.0, 2.0])
 
     Adiff = 0.001
+    C = 0.0001
 
     eqns = sym.join(
             sym.d_dt(u**p)
             + sym.div(B * u**q)
             - sym.div(Adiff * sym.grad(u**r))
+            + C * u
             )
 
     print sym.pretty(eqns)

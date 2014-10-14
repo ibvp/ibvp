@@ -431,7 +431,8 @@ def generate_proteus_problem_file(bvp, clsnm):
                     dx = differentiate(x, psi)
                     if dx:
                         deplabels[i][j] = classify_dep(dx)
-                        if deplabels[i][j] == 'nonlinear':
+                        if deplabels[i][j] == 'nonlinear' \
+                           or deplabels[i][j] == 'linear':
                             dxstr = "c[('d%s', %d, %d)][:] = %s" % (label, i, j, dx)
                             dassign.append(dxstr)
                     else:

@@ -1,6 +1,9 @@
 def main():
     import ibvp.sym as sym
 
+    # Currently broken since vector-valued unknowns get counted incorrectly.
+    1/0
+
     dim = 3
     u = sym.Field("u")
     f = sym.Field("f")
