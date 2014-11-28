@@ -1,6 +1,8 @@
 """Proteus target for IBVP translation."""
 
 from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
 
 __copyright__ = "Copyright (C) 2014 Rob Kirby, Andreas Kloeckner"
 
@@ -46,7 +48,7 @@ def test_burgers():
             - sym.div(sym.grad(u))
             )
 
-    print sym.pretty(eqns)
+    print(sym.pretty(eqns))
 
     generate_proteus_problem_file(
             PDESystem(
@@ -71,7 +73,7 @@ def test_heat():
             - sym.div(sym.grad(u))
             )
 
-    print sym.pretty(eqns)
+    print(sym.pretty(eqns))
 
     generate_proteus_problem_file(
             PDESystem(
@@ -97,7 +99,7 @@ def test_parabolic_system():
             sym.d_dt(v) - sym.div(sym.grad(u+v)),
             )
 
-    print sym.pretty(eqns)
+    print(sym.pretty(eqns))
 
     generate_proteus_problem_file(
             PDESystem(
@@ -127,7 +129,7 @@ def test_wave():
             + c * sym.grad(u)
             )
 
-    print sym.pretty(eqns)
+    print(sym.pretty(eqns))
 
     generate_proteus_problem_file(
             PDESystem(
@@ -163,7 +165,7 @@ def test_very_nonlinear_burgers():
             + C * u
             )
 
-    print sym.pretty(eqns)
+    print(sym.pretty(eqns))
 
     generate_proteus_problem_file(
             PDESystem(
@@ -199,7 +201,7 @@ def test_shallow_water_gc():
             + 0.5*d3.nabla*d3(col_height**2)
             )
 
-    print sym.pretty(eqns)
+    print(sym.pretty(eqns))
 
     from ibvp.language import PDESystem
     system = PDESystem(

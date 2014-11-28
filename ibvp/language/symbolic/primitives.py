@@ -1,6 +1,8 @@
 """BVP/IBVP description language: language primitives."""
 
 from __future__ import division
+from __future__ import absolute_import
+from six.moves import range
 
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner"
 
@@ -116,7 +118,7 @@ def make_field_vector(name, components):
     :param components: The number of components in the vector.
     """
     if isinstance(components, int):
-        components = range(components)
+        components = list(range(components))
 
     from pytools.obj_array import join_fields
     vfld = Field(name)

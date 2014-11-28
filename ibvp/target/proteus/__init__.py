@@ -1,6 +1,12 @@
 """Proteus target for IBVP translation."""
 
 from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
+from six.moves import map
+from six.moves import range
+from six.moves import zip
+from functools import reduce
 
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner"
 
@@ -298,7 +304,7 @@ def generate_proteus_problem_file(bvp, clsnm):
     scalarized_system = scalarize(bvp)
 
     import ibvp.sym as sym
-    print sym.pretty(scalarized_system.pde_system)
+    print(sym.pretty(scalarized_system.pde_system))
 
     distr_system = DistributeMapper()(scalarized_system.pde_system)
 
@@ -591,6 +597,6 @@ class %s(TC_base):
 %s
 """ % (clsnm, dep_st, repr(scalar_unknowns), num_equations, refs, assigns)
 
-    print tc_class_str
+    print(tc_class_str)
 
 #  vim: foldmethod=marker

@@ -4,12 +4,6 @@
 def main():
     from setuptools import setup
 
-    try:
-        from distutils.command.build_py import build_py_2to3 as build_py
-    except ImportError:
-        # 2.x
-        from distutils.command.build_py import build_py
-
     version_dict = {}
     init_filename = "ibvp/version.py"
     exec(compile(open(init_filename, "r").read(), init_filename, "exec"),
@@ -55,10 +49,8 @@ def main():
               "pytools>=2014.1",
               "pymbolic>=2014.1",
               "pytest>=2.3",
-              ],
-
-          # 2to3 invocation
-          cmdclass={'build_py': build_py})
+              "six",
+              ])
 
 
 if __name__ == '__main__':
