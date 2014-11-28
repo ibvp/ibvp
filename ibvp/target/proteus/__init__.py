@@ -26,13 +26,12 @@ THE SOFTWARE.
 
 import numpy as np
 from ibvp.language.symbolic.mappers import (
-        Scalarizer, DistributeMapper, CombineMapper, WalkMapper)
+        DistributeMapper, CombineMapper,
+        differentiate)
 from ibvp.language.symbolic.util import pretty
 import ibvp.language.symbolic.primitives as p
 import pymbolic.primitives as pp
 from pymbolic.mapper.dependency import DependencyMapper as DepMapBase
-from pymbolic.mapper.differentiator import DifferentiationMapper as DBase
-import pymbolic as pmbl
 
 
 class DependencyMapper(DepMapBase):
@@ -61,14 +60,6 @@ def classify_dep(expr):
         deptype = 'constant'
 
     return deptype
-
-
-class DMapper(DBase):
-    map_field = pmbl.mapper.differentiator.DifferentiationMapper.map_variable
-
-
-def differentiate(expr, var):
-    return DMapper(var)(expr)
 
 
 # {{{ "transport coefficent" finding
@@ -299,42 +290,19 @@ class HasSpatialDerivativeMapper(HasSomethingMapper):
     map_curl = map_derivative
 
 
-class MaxSubscriptFinder(WalkMapper):
-    def __init__(self):
-        self.name_to_max_index = {}
-
-    def map_subscript(self, expr):
-        if isinstance(expr.aggregate, p.Field):
-            assert isinstance(expr.index, int)
-            self.name_to_max_index[expr.aggregate.name] = max(
-                    self.name_to_max_index.get(expr.aggregate.name, 0),
-                    expr.index)
-
 # }}}
 
 
 def generate_proteus_problem_file(bvp, clsnm):
-    # FIXME What this should really do is call a (vaporware) whole-IBVP
-    # scalarizer.
-    scalarized_system = Scalarizer(bvp.ambient_dim)(bvp.pde_system)
+    from ibvp.language import scalarize
+    scalarized_system = scalarize(bvp)
 
     import ibvp.sym as sym
-    print sym.pretty(scalarized_system)
+    print sym.pretty(scalarized_system.pde_system)
 
-    distr_system = DistributeMapper()(scalarized_system)
+    distr_system = DistributeMapper()(scalarized_system.pde_system)
 
-    msf = MaxSubscriptFinder()
-    msf(distr_system)
-
-    scalar_unknowns = []
-    for unk in bvp.unknowns:
-        unk_max_index = msf.name_to_max_index.get(unk)
-        if unk_max_index is not None:
-            scalar_unknowns.extend(
-                    "%s_%d" % (unk, i)
-                    for i in range(unk_max_index+1))
-        else:
-            scalar_unknowns.append(unk)
+    scalar_unknowns = scalarized_system.unknowns
 
     num_equations = len(scalar_unknowns)
     ambient_dim = bvp.ambient_dim
@@ -601,7 +569,6 @@ def generate_proteus_problem_file(bvp, clsnm):
 
     tc_class_str = """
 from proteus.TransportCoefficients import TC_base
-
 
 class %s(TC_base):
     def __init__(self):

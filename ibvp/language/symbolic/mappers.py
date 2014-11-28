@@ -25,16 +25,28 @@ THE SOFTWARE.
 """
 
 
-from pymbolic.mapper import (
+from pymbolic.geometric_algebra.mapper import (
         IdentityMapper as IdentityMapperBase,
         CombineMapper as CombineMapperBase,
+        Collector as CollectorBase,
         WalkMapper as WalkMapperBase,
+        EvaluationMapper as EvaluationMapperBase,
+        StringifyMapper as StringifyMapperBase,
+        Dimensionalizer,
+        DerivativeBinder as DerivativeBinderBase,
+
+        DerivativeSourceAndNablaComponentCollector
+        as DerivativeSourceAndNablaComponentCollectorBase,
+        NablaComponentToUnitVector
+        as NablaComponentToUnitVectorBase,
+        DerivativeSourceFinder
+        as DerivativeSourceFinderBase,
+
         )
+from pymbolic.mapper.differentiator import (
+        DifferentiationMapper as DifferentiationMapperBase,)
 from pymbolic.mapper.stringifier import (
-        CSESplittingStringifyMapperMixin,
-        StringifyMapper as StringifyMapperBase)
-from pymbolic.mapper.evaluator import (
-        EvaluationMapper as EvaluationMapperBase)
+        CSESplittingStringifyMapperMixin,)
 from pymbolic.mapper.distributor import (
         DistributeMapper as DistributeMapperBase)
 import ibvp.language.symbolic.primitives as p
@@ -92,6 +104,18 @@ class CombineMapper(CombineMapperBase):
             self.rec(expr.op), self.rec(expr.argument)])
 
 
+class Collector(CollectorBase, CombineMapper):
+    # All leaves
+    def map_field(self, expr):
+        return set()
+
+    map_time = map_field
+    map_vector_field = map_field
+    map_time_derivative = map_field
+    map_parameter = map_field
+    map_derivative = map_field
+
+
 class WalkMapper(WalkMapperBase):
     def map_operator_binding(self, expr, *args):
         if not self.visit(expr, *args):
@@ -101,13 +125,19 @@ class WalkMapper(WalkMapperBase):
         self.rec(expr.argument, *args)
 
     def map_time_derivative(self, expr, *args):
+        # A leaf.
         if not self.visit(expr, *args):
             return
 
     map_derivative = map_time_derivative
 
     map_field = map_time_derivative
+    map_vector_field = map_time_derivative
     map_parameter = map_time_derivative
+
+    map_div = map_time_derivative
+    map_grad = map_time_derivative
+    map_curl = map_time_derivative
 
 # }}}
 
@@ -137,6 +167,7 @@ class StringifyMapper(StringifyMapperBase):
 
     map_parameter = map_field
     map_vector_field = map_field
+    map_multivector_field = map_field
 
     def map_parameter(self, expr, enclosing_prec):
         return expr.name
@@ -146,15 +177,6 @@ class StringifyMapper(StringifyMapperBase):
 
     map_grad = map_div
     map_curl = map_div
-
-    def map_nabla(self, expr, enclosing_prec):
-        return r"\/[%s]" % expr.nabla_id
-
-    def map_nabla_component(self, expr, enclosing_prec):
-        return r"d/dx%d[%s]" % (expr.ambient_axis, expr.nabla_id)
-
-    def map_derivative_source(self, expr, enclosing_prec):
-        return r"D[%s](%s)" % (expr.nabla_id, self.rec(expr.operand, PREC_NONE))
 
 
 class PrettyStringifyMapper(
@@ -238,49 +260,46 @@ class EvaluationMapper(EvaluationMapperBase):
 # }}}
 
 
+# {{{ derivative binder
+
+class DerivativeSourceAndNablaComponentCollector(
+        DerivativeSourceAndNablaComponentCollectorBase,
+        Collector):
+    pass
+
+
+class NablaComponentToUnitVector(
+        NablaComponentToUnitVectorBase,
+        EvaluationMapper):
+    pass
+
+
+class DerivativeSourceFinder(
+        DerivativeSourceFinderBase,
+        EvaluationMapper):
+    pass
+
+
+class DerivativeBinder(DerivativeBinderBase, IdentityMapper):
+    derivative_source_and_nabla_component_collector = \
+            DerivativeSourceAndNablaComponentCollector
+    nabla_component_to_unit_vector = NablaComponentToUnitVector
+    derivative_source_finder = DerivativeSourceFinder
+
+    def take_derivative(self, ambient_axis, expr):
+        return p.DerivativeOperator(ambient_axis)(expr)
+
+# }}}
+
+
 # {{{ scalarizer
 
-class Scalarizer(OperatorBindingMixin, EvaluationMapper):
+class Scalarizer(OperatorBindingMixin, Dimensionalizer, EvaluationMapper):
     def __init__(self, ambient_dim):
         # FIXME: Might be better to make 'ambient_dim' a per-domain
         # thing.
         EvaluationMapper.__init__(self)
         self.ambient_dim = ambient_dim
-
-    def map_nabla(self, expr):
-        from pytools.obj_array import make_obj_array
-        return MultiVector(make_obj_array(
-            [p.NablaComponent(axis, expr.nabla_id)
-                for axis in xrange(self.ambient_dim)]))
-
-    def map_vector_field(self, expr):
-        # return MultiVector(make_sym_vector(expr.name, self.ambient_dim))
-        return self.rec(p.make_field_vector(expr.name, self.ambient_dim))
-
-    def map_div_binding(self, expr):
-        rec_arg = self.rec(expr.argument)
-        assert isinstance(rec_arg, np.ndarray)
-        return sum(
-                p.DerivativeOperator(i)(expr_i)
-                for i, expr_i in enumerate(rec_arg))
-        # d = p.Derivative()
-        # arg = self.rec(expr.argument)
-        # z = self.rec(d.nabla).scalar_product(d(arg))
-        # print "DIV", self.rec(d.nabla)
-        # print "DIV", d(arg)
-        # return z
-
-    def map_grad_binding(self, expr):
-        from pytools.obj_array import make_obj_array
-        rec_arg = self.rec(expr.argument)
-        return make_obj_array([
-            p.DerivativeOperator(i)(rec_arg)
-            for i in range(self.ambient_dim)])
-
-        # d = p.Derivative()
-        # z = self.rec(d.nabla)*d(expr.argument)
-        # print "ZZZ", z
-        # return z
 
     def map_curl_binding(self, expr):
         raise NotImplementedError()
@@ -295,9 +314,58 @@ class Scalarizer(OperatorBindingMixin, EvaluationMapper):
             for i in range(len(expr))])
 
     def map_subscript(self, expr, *args):
-        print "hithere"
         return p.Field("%s_%s" % (expr.aggregate, expr.index))
 
+    # {{{ conventional vector calculus
+
+    def map_vector_field(self, expr):
+        return self.rec(p.make_field_vector(expr.name, self.ambient_dim))
+
+    def map_div_binding(self, expr):
+        rec_arg = self.rec(expr.argument)
+        assert isinstance(rec_arg, np.ndarray)
+        return sum(
+                p.DerivativeOperator(i)(expr_i)
+                for i, expr_i in enumerate(rec_arg))
+
+    def map_grad_binding(self, expr):
+        from pytools.obj_array import make_obj_array
+        rec_arg = self.rec(expr.argument)
+        return make_obj_array([
+            p.DerivativeOperator(i)(rec_arg)
+            for i in range(self.ambient_dim)])
+
+    # }}}
+
+    # {{{ geometric calculus
+
+    def map_multivector_field(self, expr):
+        from pymbolic.primitives import make_sym_vector
+        return MultiVector(
+                make_sym_vector(
+                    expr.name, self.ambient_dim,
+                    var_class=p.Field))
+
+    # }}}
+
+    def __call__(self, expr):
+        result = super(Scalarizer, self).__call__(expr)
+        return DerivativeBinder()(result)
+
 # }}}
+
+
+# {{{ differentiation mapper
+
+class DifferentiationMapper(DifferentiationMapperBase):
+    map_field = DifferentiationMapperBase.map_variable
+    map_parameter = DifferentiationMapperBase.map_variable
+
+
+def differentiate(var, expr):
+    return DifferentiationMapper(var)(expr)
+
+# }}}
+
 
 # vim: foldmethod=marker

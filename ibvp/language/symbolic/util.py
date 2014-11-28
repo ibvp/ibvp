@@ -23,6 +23,9 @@ THE SOFTWARE.
 """
 
 
+import numpy as np
+
+
 def pretty(expr):
     from ibvp.language.symbolic.mappers import PrettyStringifyMapper
     stringify_mapper = PrettyStringifyMapper()
@@ -36,3 +39,29 @@ def pretty(expr):
         result = "\n".join(cse_strs)+"\n"+splitter+result
 
     return result
+
+
+def join_fields(*args):
+    from pytools.obj_array import make_obj_array, log_shape
+    from pymbolic.geometric_algebra import MultiVector, bit_count
+
+    res_list = []
+    for arg in args:
+        if isinstance(arg, list):
+            res_list.extend(arg)
+
+        elif isinstance(arg, MultiVector):
+            for grade in arg.all_grades():
+                for bits in range(2**arg.space.dimensions):
+                    if bit_count(bits) == grade:
+                        res_list.append(arg.data.get(bits, 0))
+
+        elif isinstance(arg, np.ndarray):
+            if log_shape(arg) == ():
+                res_list.append(arg)
+            else:
+                res_list.extend(arg.flat)
+        else:
+            res_list.append(arg)
+
+    return make_obj_array(res_list)

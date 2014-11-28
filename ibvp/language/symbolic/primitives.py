@@ -27,7 +27,8 @@ THE SOFTWARE.
 
 import pymbolic.primitives as p
 import numpy as np  # noqa
-from pymbolic.geometric_algebra import MultiVector
+from pymbolic.geometric_algebra.primitives import (  # noqa
+        Nabla, NablaComponent, Derivative, DerivativeSource)
 
 
 class Expression(p.Expression):
@@ -49,14 +50,17 @@ class LinearOperator(Operator):
 
 class ScalarizingOperator(Operator):
     def __call__(self, expr):
-        from pytools.obj_array import with_object_array_or_scalar
-
         def bind_one(subexpr):
             if p.is_zero(subexpr):
                 return subexpr
             else:
                 return OperatorBinding(self, subexpr)
 
+        from pymbolic.geometric_algebra import MultiVector
+        if isinstance(expr, MultiVector):
+            return expr.map(bind_one)
+
+        from pytools.obj_array import with_object_array_or_scalar
         return with_object_array_or_scalar(bind_one, expr)
 
 
@@ -76,7 +80,7 @@ class OperatorBinding(Expression):
         return self.op, self.arguments
 
 
-class Parameter(p.Variable):
+class Parameter(Expression, p.Variable):
     mapper_method = intern("map_parameter")
 
 
@@ -89,12 +93,20 @@ class Field(Expression, p.Variable):
 
 
 class VectorField(Expression, p.Variable):
-    """A symbol representing one vector variable with
+    """A symbol representing a vector variable with
     a dependence on time and location in domain.
     """
-    # Actually, a *Multi*vector variable. Don't tell anyone.
 
     mapper_method = intern("map_vector_field")
+
+
+class MultiVectorField(Expression, p.Variable):
+    """A symbol representing a :class:`pymbolic.geometric_algebra.MultiVector`.
+
+    For now, this represents a grade-1 multivector.
+    """
+
+    mapper_method = intern("map_multivector_field")
 
 
 def make_field_vector(name, components):
@@ -265,65 +277,5 @@ curl = _Curl()
 
 # }}}
 
-
-# {{{ geometric calculus
-
-class NablaComponent(Expression):
-    def __init__(self, ambient_axis, nabla_id):
-        self.ambient_axis = ambient_axis
-        self.nabla_id = nabla_id
-
-    def __getinitargs__(self):
-        return (self.ambient_axis, self.nabla_id)
-
-    mapper_method = "map_nabla_component"
-
-
-class Nabla(Expression):
-    def __init__(self, nabla_id):
-        self.nabla_id = nabla_id
-
-    def __getinitargs__(self):
-        return (self.nabla_id,)
-
-    def __getitem__(self, index):
-        if not isinstance(index, int):
-            raise TypeError("Nabla subscript must be an integer")
-
-        return NablaComponent(index, self.nabla_id)
-
-    mapper_method = "map_nabla"
-
-
-class DerivativeSource(Expression):
-    def __init__(self, operand, nabla_id=None):
-        self.operand = operand
-        self.nabla_id = nabla_id
-
-    def __getinitargs__(self):
-        return (self.operand, self.nabla_id)
-
-    mapper_method = "map_derivative_source"
-
-
-class Derivative(object):
-    _next_id = [0]
-
-    def __init__(self):
-        self.my_id = "id%s" % self._next_id[0]
-        self._next_id[0] += 1
-
-    @property
-    def nabla(self):
-        return Nabla(self.my_id)
-
-    def __call__(self, operand):
-        if isinstance(operand, MultiVector):
-            return operand.map(
-                    lambda coeff: DerivativeSource(coeff, self.my_id))
-        else:
-            return DerivativeSource(operand, self.my_id)
-
-# }}}
 
 # vim: foldmethod=marker
