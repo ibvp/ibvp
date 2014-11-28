@@ -2,7 +2,6 @@
 
 from __future__ import division
 from __future__ import absolute_import
-from six.moves import range
 
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner"
 
@@ -31,6 +30,8 @@ import pymbolic.primitives as p
 import numpy as np  # noqa
 from pymbolic.geometric_algebra.primitives import (  # noqa
         Nabla, NablaComponent, Derivative, DerivativeSource)
+
+from six.moves import range, intern
 
 
 class Expression(p.Expression):
