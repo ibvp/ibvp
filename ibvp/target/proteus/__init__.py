@@ -106,12 +106,12 @@ class TransportCoefficientStorage(object):
         each equation.  These expressions do not live under a divergence.
     """
 
-    def __init__(self, bvp, scalar_unknowns):
-        self.bvp = bvp
+    def __init__(self, scalarized_bvp, adim, scalar_unknowns):
+        self.scalarized_bvp = scalarized_bvp
+
         self.scalar_unknowns = scalar_unknowns
 
-        adim = bvp.ambient_dim
-        neq = self.num_equations
+        neq = len(scalarized_bvp.pde_system)
 
         self.mass = np.zeros(neq, dtype=object)
         self.advection = np.zeros((neq, adim),
@@ -311,10 +311,12 @@ def generate_proteus_problem_file(bvp, clsnm):
         raise ValueError("names of unknowns not unique "
                 "after scalarization")
 
-    import ibvp.sym as sym
-    print sym.pretty(distr_system)
+#    import ibvp.sym as sym
+#    print sym.pretty(distr_system)
 
-    tc_storage = TransportCoefficientStorage(bvp, scalar_unknowns)
+    tc_storage = TransportCoefficientStorage(scalarized_system,
+                                             bvp.ambient_dim,
+                                             scalar_unknowns)
 
     has_time_derivative = HasTimeDerivativeMapper()
     has_spatial_derivative = HasSpatialDerivativeMapper()
