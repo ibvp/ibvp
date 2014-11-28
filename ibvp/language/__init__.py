@@ -107,7 +107,6 @@ def scalarize(bvp):
 
     scalar_unknowns = []
     for unk in bvp.unknowns:
-        print repr(unk)
         if isinstance(unk, (p.VectorField, p.MultiVectorField)):
             scalar_unknowns.extend(
                     "%s_%d" % (unk.name, i)
