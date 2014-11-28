@@ -2,7 +2,7 @@
 
 
 def main():
-    from setuptools import setup
+    from setuptools import setup, find_packages
 
     version_dict = {}
     init_filename = "ibvp/version.py"
@@ -39,11 +39,7 @@ def main():
               'Topic :: Utilities',
               ],
 
-          packages=[
-              "ibvp",
-              "ibvp.language",
-              "ibvp.language.symbolic",
-              ],
+          packages=find_packages(),
           install_requires=[
               "numpy>=1.5",
               "pytools>=2014.1",
