@@ -393,8 +393,7 @@ def generate_proteus_problem_file(bvp, clsnm):
     defs_list = ["    %s = c[('u', %d)]" % (str(v), i)
                  for (i, v) in enumerate(scalar_unknowns)]
 
-    import string
-    defs = string.join(defs_list, '\n')     # noqa
+    defs = '\n'.join(defs_list)  # noqa
 
     unk_scalar_fields = [p.Field(psi) for psi in scalar_unknowns]
 
