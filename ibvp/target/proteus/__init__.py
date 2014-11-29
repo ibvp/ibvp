@@ -533,14 +533,14 @@ def generate_proteus_problem_file(bvp, clsnm):
     def spacer(x):
         return "        " + x
 
-    assigns = string.join(
+    assigns = "\n".join(
                 map(spacer,
                     reduce(lambda x, y: x+y,
                            [mass_assigns, dmass_assigns,
                             advect_assigns, dadvect_assigns,
                             diff_assigns, ddiff_assigns,
                             reaction_assigns, dreaction_assigns,
-                            hamiltonian_assigns, dhamiltonian_assigns])), "\n")
+                            hamiltonian_assigns, dhamiltonian_assigns])))
 
     # we dict-ify the dependencies so we can repr them.
     def dictify(arr):
@@ -563,7 +563,7 @@ def generate_proteus_problem_file(bvp, clsnm):
         ddict = dictify(d)
         dep_stmnts.append("        %s = %s" % (nm, repr(ddict)))
 
-    dep_st = string.join(dep_stmnts, "\n")
+    dep_st = "\n".join(dep_stmnts)
 
     # This is for creating, e.g. u = c[('u',0)] before we make assignments
     # in evaluate so that we have references into the c dictionary for our
@@ -572,7 +572,7 @@ def generate_proteus_problem_file(bvp, clsnm):
     for i, phi in enumerate(scalar_unknowns):
         ref_list.append("%s = c[('u',%d)]" % (phi, i))
 
-    refs = string.join((spacer(x) for x in ref_list), "\n")
+    refs = "\n".join((spacer(x) for x in ref_list))
 
     tc_class_str = """
 from proteus.TransportCoefficients import TC_base
