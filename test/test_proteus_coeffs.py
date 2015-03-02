@@ -33,6 +33,26 @@ from ibvp.language import PDESystem
 from ibvp.target.proteus import generate_proteus_problem_file
 
 
+# {{{ advection
+
+def test_advection():
+    u = sym.Field("u")
+
+    eqns = sym.join(sym.d_dt(u) + sym.d_dx(u))
+
+    print(sym.pretty(eqns))
+
+    print(generate_proteus_problem_file(
+            PDESystem(
+                ambient_dim=1,
+                pde_system=eqns,
+                unknowns=[u],
+                ),
+            "Advection"))
+
+# }}}
+
+
 # {{{ burgers
 
 def test_burgers():
@@ -79,7 +99,7 @@ def test_heat():
             PDESystem(
                 ambient_dim=ambient_dim,
                 pde_system=eqns,
-                unknowns=[u.name],
+                unknowns=[u],
                 ),
             "Heat")
 
@@ -167,13 +187,13 @@ def test_very_nonlinear_burgers():
 
     print(sym.pretty(eqns))
 
-    generate_proteus_problem_file(
+    print(generate_proteus_problem_file(
             PDESystem(
                 ambient_dim=ambient_dim,
                 pde_system=eqns,
                 unknowns=[u],
                 ),
-            "Burgers")
+            "Burgers"))
 
 # }}}
 
