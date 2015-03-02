@@ -364,7 +364,7 @@ class DifferentiationMapper(DifferentiationMapperBase):
     map_parameter = DifferentiationMapperBase.map_variable
 
 
-def differentiate(var, expr):
+def differentiate(expr, var):
     return DifferentiationMapper(var)(expr)
 
 # }}}

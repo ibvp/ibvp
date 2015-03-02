@@ -303,12 +303,12 @@ def generate_proteus_problem_file(bvp, clsnm):
     from ibvp.language import scalarize
     scalarized_system = scalarize(bvp)
 
-    import ibvp.sym as sym
-    print(sym.pretty(scalarized_system.pde_system))
+    #import ibvp.sym as sym
+    #print(sym.pretty(scalarized_system.pde_system))
 
     distr_system = DistributeMapper()(scalarized_system.pde_system)
 
-    scalar_unknowns = scalarized_system.unknowns
+    scalar_unknowns = [v.name for v in scalarized_system.unknowns]
 
     num_equations = len(scalar_unknowns)
     ambient_dim = bvp.ambient_dim
@@ -317,8 +317,8 @@ def generate_proteus_problem_file(bvp, clsnm):
         raise ValueError("names of unknowns not unique "
                 "after scalarization")
 
-#    import ibvp.sym as sym
-#    print sym.pretty(distr_system)
+    # import ibvp.sym as sym
+    # print sym.pretty(distr_system)
 
     tc_storage = TransportCoefficientStorage(scalarized_system,
                                              bvp.ambient_dim,
@@ -386,10 +386,11 @@ def generate_proteus_problem_file(bvp, clsnm):
                 else:
                     tc_storage.reaction[i] += term
 
-    # Python code we generate, we create
-    # references to the coefficient arrays in the dictionary
-    # that will conveniently have the same name as our pymbolic variables.
-    # This makes printing easy and has no major performance penalty.
+    # Python code we generate, we create references to the coefficient arrays
+    # in the dictionary that will conveniently have the same name as our
+    # pymbolic variables.  This makes printing easy and has no major
+    # performance penalty.
+
     defs_list = ["    %s = c[('u', %d)]" % (str(v), i)
                  for (i, v) in enumerate(scalar_unknowns)]
 
@@ -455,18 +456,17 @@ def generate_proteus_problem_file(bvp, clsnm):
                'constant':  1,
                'linear':    2,
                'nonlinear': 3}
-    int2dep = {0: 'none',
-               1: 'constant',
-               2: 'linear',
-               3: 'nonlinear'}
+    from pytools import reverse_dictionary
+    int2dep = reverse_dictionary(dep2int)
 
     advect_deps = np.zeros((num_equations, num_equations), "O")
     for i in range(num_equations):
         for j in range(num_equations):
             advect_deps[i, j] = int2dep[
-                                    reduce(max,
-                                       (dep2int[x]
-                                        for x in advect_deps_p[i, j, :]), 0)]
+                    reduce(max,
+                        (dep2int[x] for x in advect_deps_p[i, j, :]),
+                        0)
+                    ]
 
     diff_assigns = []
     ddiff_assigns = []
@@ -554,12 +554,13 @@ def generate_proteus_problem_file(bvp, clsnm):
                     result[i] = da
             return result
 
-    nms = ["mass", "advection", "diffusion", "potential", "reaction", "hamiltonian"]
+    names = ["mass", "advection", "diffusion", "potential",
+            "reaction", "hamiltonian"]
     deps = [mass_deps, advect_deps, diff_deps, phi_deps,
             reaction_deps, hamiltonian_deps]
 
     dep_stmnts = []
-    for (nm, d) in zip(nms, deps):
+    for (nm, d) in zip(names, deps):
         ddict = dictify(d)
         dep_stmnts.append("        %s = %s" % (nm, repr(ddict)))
 
@@ -596,6 +597,6 @@ class %s(TC_base):
 %s
 """ % (clsnm, dep_st, repr(scalar_unknowns), num_equations, refs, assigns)
 
-    print(tc_class_str)
+    return(tc_class_str)
 
 #  vim: foldmethod=marker
