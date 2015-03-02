@@ -447,7 +447,7 @@ def generate_proteus_problem_file(bvp, clsnm):
                 for k, psi in enumerate(unk_scalar_fields):
                     dbij = differentiate(bij, psi)
                     if dbij:
-                        advect_deps_p[i, k, j] = classify_dep(bij)
+                        advect_deps_p[i, k, j] = classify_dep(dbij)
                         dbstr = "c[('df', %d, %d)][...,%d] = %s" % (i, k, j, dbij)
                         dadvect_assigns.append(dbstr)
 
