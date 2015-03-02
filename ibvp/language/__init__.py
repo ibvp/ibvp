@@ -114,9 +114,9 @@ def scalarize(bvp):
                     "%s_%d" % (unk.name, i)
                     for i in range(bvp.ambient_dim))
         else:
-            scalar_unknowns.append(unk)
+            scalar_unknowns.append(unk.name)
 
-    return bvp.copy(unknowns=scalar_unknowns)
+    return bvp.copy(unknowns=[p.Field(name) for name in scalar_unknowns])
 
 
 # vim: foldmethod=marker
