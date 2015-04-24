@@ -1,11 +1,7 @@
 """Proteus target for IBVP translation."""
 
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import print_function
-from six.moves import map
-from six.moves import range
-from six.moves import zip
+from __future__ import division, absolute_import, print_function
+from six.moves import map, range, zip
 from functools import reduce
 
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner"
@@ -34,6 +30,7 @@ import numpy as np
 from ibvp.language.symbolic.mappers import (
         DistributeMapper, CombineMapper,
         differentiate)
+from pytools import Record
 from ibvp.language.symbolic.util import pretty
 import ibvp.language.symbolic.primitives as p
 import pymbolic.primitives as pp
@@ -286,8 +283,18 @@ class HasTimeDerivativeMapper(HasSomethingMapper):
     def map_time_derivative(self, expr):
         return True
 
+    def map_derivative(self, expr):
+        return False
+
+    map_div = map_derivative
+    map_grad = map_derivative
+    map_curl = map_derivative
+
 
 class HasSpatialDerivativeMapper(HasSomethingMapper):
+    def map_time_derivative(self, expr):
+        return False
+
     def map_derivative(self, expr):
         return True
 
@@ -299,34 +306,100 @@ class HasSpatialDerivativeMapper(HasSomethingMapper):
 # }}}
 
 
-def generate_proteus_problem_file(bvp, clsnm):
+# {{{ data dependency description
+
+class DataDependencyDescriptor(Record):
+    """
+    .. attribute:: time_dependency
+
+        1 if the described quantity is time-dependent,
+        0 if not
+
+    .. attribute:: spatial_dependency
+
+        One of the ``SPATIAL_XXX`` constants in this class.
+
+    """
+
+    SP_CONSTANT = 0
+    SP_DEP_PER_REGION = 10
+    SP_DEP_PER_ELEMENT = 20
+    SP_DEP_PER_NODE = 30
+
+    def __init__(self, time_dependency, spatial_dependency):
+        super(DataDependencyDescriptor, self).__init__(
+                time_dependency=time_dependency,
+                spatial_dependency=spatial_dependency)
+
+    def merge(self, other):
+        return DataDependencyDescriptor(
+                max(self.time_dependency, other.time_dependency),
+                max(self.other_dependency, other.other_dependency))
+
+# }}}
+
+
+def generate_proteus_problem_file(bvp, clsnm, ambient_dim,
+        field_dependencies=None):
     """
     :arg bvp: an instance of a subclass of :class:
-        `ibvp.language.PDESystem`.
+        `ibvp.language.BVP`.
+    :arg field_dependencies: a dictionary from field names that the
+        solver will treat as data to the quantities that they may depend
+        on, represented as a comma-separated list of strings. The following
+        quantities are available:
 
-    You must call :func:`ibvp.language.scalarize` on
+        *   ``"t"``: time
+        *   ``"x"``: spatial location, i.e. a quantity that may vary
+            from one discretization node to the next.
+        *   ``"x"``: spatial location
+
+        Names of fields specified in
+        :attr:`ibvp.language.PDESystem.unknowns` may not be keys in this
+        dictionary.
+
+        Note that this merely specifies the data format used for accessing
+        the data.
+
+    You must *not* call :func:`ibvp.language.scalarize` on
     *bvp* before calling this function.
     """
+
+    # {{{ process arguments
+
+    if field_dependencies is None:
+        field_dependencies = {}
+
+    fd_keys = set(field_dependencies)
+    unknown_names = set(v.name for v in bvp.unknowns)
+
+    if fd_keys & unknown_names:
+        raise ValueError("dependencies of unknowns specified as part of "
+                "'field_dependencies'")
+
+    # }}}
+
+    from ibvp.language import scalarize
+    scalarized_bvp = scalarize(bvp, 2)
 
     #import ibvp.sym as sym
     #print(sym.pretty(scalarized_system.pde_system))
 
-    distr_system = DistributeMapper()(bvp.pde_system)
+    distr_system = DistributeMapper()(scalarized_bvp.pde_system)
 
-    scalar_unknowns = [v.name for v in bvp.unknowns]
+    scalar_unknowns = [v.name for v in scalarized_bvp.unknowns]
 
     num_equations = len(scalar_unknowns)
-    ambient_dim = bvp.ambient_dim
 
     if len(set(scalar_unknowns)) != len(scalar_unknowns):
         raise ValueError("names of unknowns not unique "
                 "after scalarization")
 
-    # import ibvp.sym as sym
-    # print sym.pretty(distr_system)
+    #import ibvp.sym as sym
+    #print(sym.pretty(distr_system))
 
-    tc_storage = TransportCoefficientStorage(scalarized_system,
-                                             bvp.ambient_dim,
+    tc_storage = TransportCoefficientStorage(scalarized_bvp,
+                                             ambient_dim,
                                              scalar_unknowns)
 
     has_time_derivative = HasTimeDerivativeMapper()

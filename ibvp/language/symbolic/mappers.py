@@ -83,6 +83,13 @@ class IdentityMapperOperatorBindingBase(IdentityMapperBase):
 
 
 class IdentityMapper(OperatorBindingMixin, IdentityMapperOperatorBindingBase):
+
+    def map_exclusive_indicator_sum(self, expr):
+        return type(expr)(
+                tuple(
+                    (self.rec(cond), self.rec(val))
+                    for cond, val in expr.conditions_and_values))
+
     def map_time_derivative(self, expr):
         return expr
 
@@ -95,15 +102,25 @@ class IdentityMapper(OperatorBindingMixin, IdentityMapperOperatorBindingBase):
     def map_field(self, expr):
         return expr
 
-    map_div = map_derivative
-    map_grad = map_derivative
-    map_curl = map_derivative
+    map_div = map_field
+    map_grad = map_field
+    map_curl = map_field
+
+    map_nodes = map_field
+    map_coordinate_component = map_field
+
+    map_boundary_normal_component = map_field
+    map_boundary_normal = map_field
 
 
 class CombineMapper(CombineMapperBase):
     def map_operator_binding(self, expr):
         return self.combine([
             self.rec(expr.op), self.rec(expr.argument)])
+
+    def map_dot_product(self, expr):
+        return self.combine(
+                [self.rec(expr.left), self.rec(expr.right)])
 
 
 class Collector(CollectorBase, CombineMapper):
@@ -116,6 +133,12 @@ class Collector(CollectorBase, CombineMapper):
     map_time_derivative = map_field
     map_parameter = map_field
     map_derivative = map_field
+
+    map_nodes = map_field
+    map_coordinate_component = map_field
+
+    map_boundary_normal_component = map_field
+    map_boundary_normal = map_field
 
 
 class WalkMapper(WalkMapperBase):
@@ -236,6 +259,12 @@ class EvaluationMapper(EvaluationMapperBase):
                 *tuple(self.rec(arg, *args, **kwargs)
                     for arg in expr.arguments))
 
+    def map_exclusive_indicator_sum(self, expr):
+        return type(expr)(
+                tuple(
+                    (self.rec(cond), self.rec(val))
+                    for cond, val in expr.conditions_and_values))
+
     def map_time_derivative(self, expr):
         return expr
 
@@ -319,12 +348,22 @@ class Scalarizer(OperatorBindingMixin, Dimensionalizer, EvaluationMapper):
         return p.Field("%s_%s" % (expr.aggregate, expr.index))
 
     def map_dot_product(self, expr):
-
+        return sum(
+                l_i * r_i
+                for l_i, r_i in zip(
+                    self.rec(expr.left),
+                    self.rec(expr.right)))
 
     # {{{ conventional vector calculus
 
     def map_vector_field(self, expr):
         return self.rec(p.make_field_vector(expr.name, self.ambient_dim))
+
+    def map_boundary_normal(self, expr):
+        from pytools.obj_array import make_obj_array
+        return make_obj_array([
+            p.BoundaryNormalComponent(i)
+            for i in range(self.ambient_dim)])
 
     def map_div_binding(self, expr):
         rec_arg = self.rec(expr.argument)

@@ -44,10 +44,14 @@ class PDESystem(Record):
         that are being solved for.
     """
 
-    def __init__(self, pde_system, unknowns):
+    def __init__(self, pde_system, unknowns, **kwargs):
+        """
+        :arg kwargs: for internal use only
+        """
         super(PDESystem, self).__init__(
             pde_system=pde_system,
             unknowns=unknowns,
+            **kwargs
             )
 
     def map_expressions(self, expr_map):
@@ -69,15 +73,16 @@ class BVP(PDESystem):
         each term with
         :class:`ibvp.language.symbolic.primitives.IndicatorFunction`.
     """
-    def __init__(self, pde_system, boundary_conditions, unknowns):
+    def __init__(self, pde_system, boundary_conditions, unknowns, **kwargs):
         super(BVP, self).__init__(
             pde_system=pde_system,
             unknowns=unknowns,
+            boundary_conditions=boundary_conditions,
+            **kwargs
             )
-        self.boundary_conditions = boundary_conditions
 
     def map_expressions(self, expr_map):
-        return super(BVP, self).copy(
+        return super(BVP, self).map_expressions(expr_map).copy(
                 boundary_conditions=expr_map(self.boundary_conditions),
                 )
 
@@ -89,12 +94,14 @@ class IBVP(BVP):
     .. attribute :: initial_condition
     """
 
-    def __init__(self, pde_system, unknowns, initial_condition):
+    def __init__(self, pde_system, boundary_conditions, unknowns,
+            initial_condition, **kwargs):
         super(IBVP, self).__init__(
             pde_system=pde_system,
             unknowns=unknowns,
+            boundary_conditions=boundary_conditions,
             initial_condition=initial_condition,
-            )
+            **kwargs)
 
     def map_expressions(self, expr_map):
         return super(IBVP, self).map_expressions(expr_map).copy(

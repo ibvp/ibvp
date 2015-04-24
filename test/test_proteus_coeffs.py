@@ -44,11 +44,11 @@ def test_advection():
 
     print(generate_proteus_problem_file(
             PDESystem(
-                ambient_dim=1,
                 pde_system=eqns,
                 unknowns=[u],
                 ),
-            "Advection"))
+            "Advection",
+            ambient_dim=1))
 
 # }}}
 
@@ -56,8 +56,6 @@ def test_advection():
 # {{{ burgers
 
 def test_burgers():
-    ambient_dim = 2
-
     u = sym.Field("u")
 
     vec = np.array([1.0, 2.0])
@@ -72,11 +70,11 @@ def test_burgers():
 
     generate_proteus_problem_file(
             PDESystem(
-                ambient_dim=ambient_dim,
                 pde_system=eqns,
                 unknowns=[u],
                 ),
-            "Burgers")
+            "Burgers",
+            ambient_dim=2)
 
 # }}}
 
@@ -107,12 +105,10 @@ def test_heat():
             unknowns=[u],
             )
 
-    from ibvp.language import scalarize
-    system = scalarize(system, 2)
-
     generate_proteus_problem_file(
             system,
             "Heat",
+            ambient_dim=2,
             field_dependencies={
                 "bc_flag": "t,el_nr",
                 "coeff": "region",
@@ -124,8 +120,6 @@ def test_heat():
 # {{{ parabolic system
 
 def test_parabolic_system():
-    ambient_dim = 2
-
     u = sym.Field("u")
     v = sym.Field("v")
 
@@ -138,11 +132,11 @@ def test_parabolic_system():
 
     generate_proteus_problem_file(
             PDESystem(
-                ambient_dim=ambient_dim,
                 pde_system=eqns,
                 unknowns=[u, v],
                 ),
-            "ParabolicSystem")
+            "ParabolicSystem",
+            ambient_dim=2)
 
 # }}}
 
@@ -150,7 +144,6 @@ def test_parabolic_system():
 # {{{ 2nd order wave equation
 
 def test_wave():
-    dim = 3
     u = sym.Field("u")
     f = sym.Field("f")
     c = sym.Parameter("c")
@@ -168,11 +161,11 @@ def test_wave():
 
     generate_proteus_problem_file(
             PDESystem(
-                ambient_dim=dim,
                 pde_system=eqns,
                 unknowns=[u, v],
                 ),
-            "Wave")
+            "Wave",
+            ambient_dim=3)
 
 # }}}
 
@@ -180,8 +173,6 @@ def test_wave():
 # {{{ 'very nonlinear burgers'
 
 def test_very_nonlinear_burgers():
-    ambient_dim = 2
-
     p = 1
     q = 2
     r = 2
@@ -204,11 +195,11 @@ def test_very_nonlinear_burgers():
 
     print(generate_proteus_problem_file(
             PDESystem(
-                ambient_dim=ambient_dim,
                 pde_system=eqns,
                 unknowns=[u],
                 ),
-            "Burgers"))
+            "Burgers",
+            ambient_dim=2))
 
 # }}}
 
@@ -218,7 +209,6 @@ def test_very_nonlinear_burgers():
 def test_shallow_water_gc():
     import ibvp.sym as sym
 
-    dim = 2
     col_height = sym.Field("eta")
 
     # "mom"entum really is column height * velocity
@@ -240,13 +230,13 @@ def test_shallow_water_gc():
 
     from ibvp.language import PDESystem
     system = PDESystem(
-            ambient_dim=dim,
             pde_system=eqns,
             unknowns=[col_height, mom],
             )
 
     from ibvp.target.proteus import generate_proteus_problem_file
-    generate_proteus_problem_file(system, "ShallowWater")
+    generate_proteus_problem_file(system, "ShallowWater",
+            ambient_dim=2)
 
 # }}}
 

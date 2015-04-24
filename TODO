@@ -1,0 +1,2 @@
+- InRange -> crash
+- Safeguarding to clamp values, with differentiation done reasonably
