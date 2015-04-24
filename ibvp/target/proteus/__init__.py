@@ -300,15 +300,20 @@ class HasSpatialDerivativeMapper(HasSomethingMapper):
 
 
 def generate_proteus_problem_file(bvp, clsnm):
-    from ibvp.language import scalarize
-    scalarized_system = scalarize(bvp)
+    """
+    :arg bvp: an instance of a subclass of :class:
+        `ibvp.language.PDESystem`.
+
+    You must call :func:`ibvp.language.scalarize` on
+    *bvp* before calling this function.
+    """
 
     #import ibvp.sym as sym
     #print(sym.pretty(scalarized_system.pde_system))
 
-    distr_system = DistributeMapper()(scalarized_system.pde_system)
+    distr_system = DistributeMapper()(bvp.pde_system)
 
-    scalar_unknowns = [v.name for v in scalarized_system.unknowns]
+    scalar_unknowns = [v.name for v in bvp.unknowns]
 
     num_equations = len(scalar_unknowns)
     ambient_dim = bvp.ambient_dim

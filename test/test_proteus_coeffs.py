@@ -29,7 +29,7 @@ THE SOFTWARE.
 import numpy as np
 
 import ibvp.sym as sym
-from ibvp.language import PDESystem
+from ibvp.language import PDESystem, BVP
 from ibvp.target.proteus import generate_proteus_problem_file
 
 
@@ -84,8 +84,6 @@ def test_burgers():
 # {{{ heat equation
 
 def test_heat():
-    ambient_dim = 2
-
     u = sym.Field("u")
 
     eqns = sym.join(
@@ -95,12 +93,18 @@ def test_heat():
 
     print(sym.pretty(eqns))
 
+    system = BVP(
+            pde_system=eqns,
+            boundary_conditions=[
+                ],
+            unknowns=[u],
+            )
+
+    from ibvp.language import scalarize
+    system = scalarize(system, 2)
+
     generate_proteus_problem_file(
-            PDESystem(
-                ambient_dim=ambient_dim,
-                pde_system=eqns,
-                unknowns=[u],
-                ),
+            system,
             "Heat")
 
 # }}}
@@ -173,10 +177,10 @@ def test_very_nonlinear_burgers():
 
     u = sym.Field("u")
 
-    B = np.array([1.0, 2.0])
+    B = np.array([1.0, 2.0])  # noqa
 
-    Adiff = 0.001
-    C = 0.0001
+    Adiff = 0.001  # noqa
+    C = 0.0001  # noqa
 
     eqns = sym.join(
             sym.d_dt(u**p)

@@ -34,10 +34,18 @@ from pymbolic.geometric_algebra.primitives import (  # noqa
 from six.moves import range, intern
 
 
+make_common_subexpression = p.make_common_subexpression
+
+
 class Expression(p.Expression):
     def stringifier(self):
         from ibvp.language.symbolic.mappers import StringifyMapper
         return StringifyMapper
+
+
+class IndicatorFunction(p.If):
+    def __init__(self, condition):
+        super(IndicatorFunction, self).__init__(condition, 1, 0)
 
 
 # {{{ operators and binding
@@ -166,51 +174,25 @@ abs = Function("abs")
 
 # {{{ discretization properties
 
-class GeometryProperty(Expression):
-    """A quantity that depends exclusively on the geometry (and has no
-    further arguments.
-    """
-
-    def __init__(self, where=None):
-        """
-        :arg where: a symbolic name of a :class:`GeometryComponent`
-        """
-
-        self.where = where
+class CoordinateComponent(Expression):
+    def __init__(self, ambient_axis):
+        self.ambient_axis = ambient_axis
 
     def __getinitargs__(self):
-        return (self.where,)
-
-
-class CoordinateComponent(GeometryProperty):
-    def __init__(self, ambient_axis, where=None):
-        """
-        :arg where: a symbolic name of a :class:`GeometryComponent`
-        """
-        self.ambient_axis = ambient_axis
-        GeometryProperty.__init__(self, where)
+        return (self.ambient_axis,)
 
     mapper_method = intern("map_coordinate_component")
 
 
-class CoordinateVector(GeometryProperty):
-    def __init__(self, where=None):
-        GeometryProperty.__init__(self, where)
-
+class CoordinateVector(Expression):
     mapper_method = intern("map_nodes")
 
 
-class BoundaryNormalComponent(GeometryProperty):
-    def __init__(self, where=None):
-        GeometryProperty.__init__(self, where)
-
+class BoundaryNormalComponent(Expression):
     mapper_method = intern("map_boundary_normal_component")
 
 
-class BoundaryNormalVector(GeometryProperty):
-    def __init__(self, where=None):
-        GeometryProperty.__init__(self, where)
-
+class BoundaryNormalVector(Expression):
     mapper_method = intern("map_boundary_normal")
 
 # }}}

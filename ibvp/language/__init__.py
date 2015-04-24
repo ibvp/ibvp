@@ -34,8 +34,6 @@ from pytools import Record
 
 class PDESystem(Record):
     """
-    .. attribute :: ambient_dim
-
     .. attribute :: pde_system
 
         A :class:`numpy.ndarray` of :class:`pymbolic.primitives.Expression`.
@@ -46,9 +44,8 @@ class PDESystem(Record):
         that are being solved for.
     """
 
-    def __init__(self, ambient_dim, pde_system, unknowns):
+    def __init__(self, pde_system, unknowns):
         super(PDESystem, self).__init__(
-            ambient_dim=ambient_dim,
             pde_system=pde_system,
             unknowns=unknowns,
             )
@@ -63,8 +60,21 @@ class BVP(PDESystem):
     """Shares all the attributes of its superclass :class:`BVP`,
     and additionally, has:
 
-    .. attribute :: initial_condition
+    .. attribute :: boundary_conditions
+
+        a :class:`list` of :mod:`pymbolic` expressions,
+        each of which is forced to vanish on the entire
+        boundary. To implement a boundary condition that
+        is enforced on parts of the boundary, multiply
+        each term with
+        :class:`ibvp.language.symbolic.primitives.IndicatorFunction`.
     """
+    def __init__(self, pde_system, boundary_conditions, unknowns):
+        super(BVP, self).__init__(
+            pde_system=pde_system,
+            unknowns=unknowns,
+            )
+        self.boundary_conditions = boundary_conditions
 
 
 class IBVP(BVP):
