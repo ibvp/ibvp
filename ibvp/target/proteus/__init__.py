@@ -580,6 +580,20 @@ def generate_proteus_problem_file(bvp, clsnm):
 
     refs = "\n".join((spacer(x) for x in ref_list))
 
+    # now we need to generate the boundary conditions
+    bcs = bvp.boundary_conditions
+    for bc in bcs:
+        if not isinstance(bc, p.ExclusiveIndicatorSum):
+            bc = p.ExclusiveIndicatorSum((None, bc))
+        for cond, val in bc:
+            if isinstance(val, p.Field):
+                pass
+            else:
+                pass
+            # Need to classify the boundary condition
+            # as to type, generate the code
+            pass
+
     tc_class_str = """
 from proteus.TransportCoefficients import TC_base
 
@@ -601,6 +615,7 @@ class %s(TC_base):
 %s
 %s
 """ % (clsnm, dep_st, repr(scalar_unknowns), num_equations, refs, assigns)
+
 
     return(tc_class_str)
 
