@@ -43,9 +43,37 @@ class Expression(p.Expression):
         return StringifyMapper
 
 
+class DotProduct(p.Expression):
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+    mapper_method = "map_dot_product"
+
+
+dot = DotProduct
+
+
 class IndicatorFunction(p.If):
     def __init__(self, condition):
         super(IndicatorFunction, self).__init__(condition, 1, 0)
+
+
+class ExclusiveIndicatorSum(p.Expression):
+    """
+    .. attribute:: conditions_and_values
+
+        A list of tuples ``(condition, value)``, where
+        at most one of the *conditions* evaluates to *True*.
+        The *value* of the corresponding tuple is the valu
+        of the overall expression.
+
+    If none of the conditions evaluates to *True*, the
+    value of the expression is zero.
+    """
+
+    def __init__(self, *conditions_and_values):
+        self.conditions_and_values = conditions_and_values
 
 
 # {{{ operators and binding

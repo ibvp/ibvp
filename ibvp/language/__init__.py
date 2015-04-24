@@ -76,6 +76,11 @@ class BVP(PDESystem):
             )
         self.boundary_conditions = boundary_conditions
 
+    def map_expressions(self, expr_map):
+        return super(BVP, self).copy(
+                boundary_conditions=expr_map(self.boundary_conditions),
+                )
+
 
 class IBVP(BVP):
     """Shares all the attributes of its superclass :class:`BVP`,
@@ -84,9 +89,8 @@ class IBVP(BVP):
     .. attribute :: initial_condition
     """
 
-    def __init__(self, ambient_dim, pde_system, unknowns, initial_condition):
-        super(BVP, self).__init__(
-            ambient_dim=ambient_dim,
+    def __init__(self, pde_system, unknowns, initial_condition):
+        super(IBVP, self).__init__(
             pde_system=pde_system,
             unknowns=unknowns,
             initial_condition=initial_condition,
@@ -100,13 +104,13 @@ class IBVP(BVP):
 # }}}
 
 
-def scalarize(bvp):
+def scalarize(bvp, ambient_dim):
     """
     :arg bvp: an instance of :class:`BVP` or a subclass thereof
     """
     from ibvp.language.symbolic.mappers import Scalarizer
 
-    scalarizer = Scalarizer(bvp.ambient_dim)
+    scalarizer = Scalarizer(ambient_dim)
 
     from ibvp.language.symbolic.util import join_fields
 
@@ -122,7 +126,7 @@ def scalarize(bvp):
         if isinstance(unk, (p.VectorField, p.MultiVectorField)):
             scalar_unknowns.extend(
                     "%s_%d" % (unk.name, i)
-                    for i in range(bvp.ambient_dim))
+                    for i in range(ambient_dim))
         else:
             scalar_unknowns.append(unk.name)
 

@@ -158,7 +158,7 @@ class StringifyMapper(StringifyMapperBase):
         return "d/dt"
 
     def map_derivative(self, expr, enclosing_prec):
-        AXES = "xyz"
+        AXES = "xyz"  # noqa
         try:
             return "d/d%s" % AXES[expr.ambient_axis]
         except IndexError:
@@ -315,8 +315,11 @@ class Scalarizer(OperatorBindingMixin, Dimensionalizer, EvaluationMapper):
             self.rec(expr[i])
             for i in range(len(expr))])
 
-    def map_subscript(self, expr, *args):
+    def map_subscript(self, expr):
         return p.Field("%s_%s" % (expr.aggregate, expr.index))
+
+    def map_dot_product(self, expr):
+
 
     # {{{ conventional vector calculus
 

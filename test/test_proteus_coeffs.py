@@ -85,6 +85,7 @@ def test_burgers():
 
 def test_heat():
     u = sym.Field("u")
+    bc_flag = sym.Field("bc_flag")
 
     eqns = sym.join(
             sym.d_dt(u)
@@ -93,9 +94,15 @@ def test_heat():
 
     print(sym.pretty(eqns))
 
+    normal = sym.BoundaryNormalVector()
     system = BVP(
             pde_system=eqns,
             boundary_conditions=[
+                sym.ExclusiveIndicatorSum(
+                    (bc_flag == 1, u - 15),
+                    (bc_flag == 2,
+                        sym.dot(normal, sym.grad(u)) - 0),
+                    )
                 ],
             unknowns=[u],
             )
@@ -105,7 +112,11 @@ def test_heat():
 
     generate_proteus_problem_file(
             system,
-            "Heat")
+            "Heat",
+            field_dependencies={
+                "bc_flag": "t,el_nr",
+                "coeff": "region",
+                })
 
 # }}}
 
