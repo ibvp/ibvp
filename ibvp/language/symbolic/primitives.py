@@ -75,6 +75,8 @@ class ExclusiveIndicatorSum(p.Expression):
     def __init__(self, *conditions_and_values):
         self.conditions_and_values = conditions_and_values
 
+    mapper_method = "map_exclusive_indicator_sum"
+
 
 # {{{ operators and binding
 
@@ -217,6 +219,12 @@ class CoordinateVector(Expression):
 
 
 class BoundaryNormalComponent(Expression):
+    def __init__(self, ambient_axis):
+        self.ambient_axis = ambient_axis
+
+    def __getinitargs__(self):
+        return (self.ambient_axis,)
+
     mapper_method = intern("map_boundary_normal_component")
 
 
