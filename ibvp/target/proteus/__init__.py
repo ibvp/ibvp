@@ -673,6 +673,8 @@ def generate_proteus_problem_file(bvp, clsnm, ambient_dim,
     unk_to_num = dict((y, x)
                       for (x, y) in enumerate(scalar_unknowns))
 
+    # I'll gather up all the bc everywhere into these
+    # before generating code in case I have conditions in multiple places.
     diri_bcs = {}
     diff_flux_bcs = dict((i, {}) for i in range(num_equations))
     adv_flux_bcs = {}
@@ -689,8 +691,6 @@ def generate_proteus_problem_file(bvp, clsnm, ambient_dim,
                 val = pp.Sum((val, 0))
             if not isinstance(val, pp.Sum):
                 raise ValueError("Illegal BC")
-
-            print(cond)
 
             # there can only be one child of the sum that has
             # field dependencies.  This is the term to analyze, and
@@ -716,10 +716,12 @@ def generate_proteus_problem_file(bvp, clsnm, ambient_dim,
 
             # now we look at the BC term and see what kind it is
             if isinstance(bc_term, p.Field):
-                print("Dirichlet BC on field ", unk_to_num[bc_term.name])
-                # need to take apart the condition and figure out
-                # how to generate the function
-                print(type(cond))
+                field_num = unk_to_num[bc_term.name]
+
+                if field_num in diri_bcs:
+                    diri_bcs[field_num].append((cond, bc_value))
+                else:
+                    diri_bcs[field_num] = [(cond, bc_value)]
 
             elif isinstance(bc_term, p.DotProduct):
                 bc_terms_cur \
@@ -739,9 +741,7 @@ def generate_proteus_problem_file(bvp, clsnm, ambient_dim,
                                                reduce(lambda a, b: a*b,
                                                       rest)))
 
-                print(bc_terms_cur)
                 if has_spatial_derivative(bc_term):
-                    print("That's a diffusive flux")
                     coeff_matrix = np.zeros((ambient_dim, ambient_dim),
                                             dtype=object)
                     term_pot = -1
@@ -760,7 +760,6 @@ def generate_proteus_problem_file(bvp, clsnm, ambient_dim,
                             raise ValueError("Problem with expanded BC")
                         coeff_matrix[coeff_row, der.op.ambient_axis] \
                             += coeff
-                    print(coeff_matrix)
 
                     # Now look through transport coefficients and find
                     # all the equations that have this term
@@ -769,11 +768,15 @@ def generate_proteus_problem_file(bvp, clsnm, ambient_dim,
                         if np.all(tc_storage.diffusion[k, pot_index, :, :]
                                   == coeff_matrix):
                             eqns_with_this_diffusive_term.append(k)
-                    print("Equations with this diffusive_term: ",
-                          eqns_with_this_diffusive_term)
+
+                    for eq in eqns_with_this_diffusive_term:
+                        if eq in diff_flux_bcs:
+                            if term_pot in diff_flux_bcs[eq]:
+                                diff_flux_bcs[eq][term_pot].append((cond, bc_value))
+                            else:
+                                diff_flux_bcs[eq][term_pot] = [(cond, bc_value)]
 
                 else:
-                    print("That's an advective flux")
                     advective_flux = np.zeros((ambient_dim,), dtype=object)
                     for (n, t) in normals_pulled_out:
                         advective_flux[n.ambient_axis] += t
@@ -784,8 +787,11 @@ def generate_proteus_problem_file(bvp, clsnm, ambient_dim,
                         if np.all(tc_storage.advection[k, :]
                                   == advective_flux):
                             eqns_with_this_advective_term.append(k)
-                    print("Equations with this advective term: ",
-                          eqns_with_this_advective_term)
+                    for eq in eqns_with_this_advective_term:
+                        if eq in adv_flux_bcs:
+                            adv_flux_bcs[eq].append((cond, bc_value))
+                        else:
+                            adv_flux_bcs[eq] = [(cond, bc_value)]
 
     tc_class_str = """
 from proteus.TransportCoefficients import TC_base
@@ -809,6 +815,43 @@ class %s(TC_base):
 %s
 """ % (clsnm, dep_st, repr(scalar_unknowns), num_equations, refs, assigns)
 
-    return(tc_class_str)
+    # now generate the code for the boundary conditions
+
+    bc_code = ""
+    for f in sorted(diri_bcs):
+        bc_cases = ["    if %s:\n        return lambda x, t: %s\n" % (c, v)
+                    for c, v in diri_bcs[f]]
+        bc_code += "def diriBC%d(x, bc_flag):\n" % (field_num,) \
+                   + reduce(lambda a, b: a+"\n"+b, bc_cases)
+
+    for f in sorted(diff_flux_bcs):
+        for g in sorted(diff_flux_bcs[f]):
+            bc_cases = ["    if %s:\n        return lambda x, t: %s\n" % (c, v)
+                        for c, v in diff_flux_bcs[f][g]]
+            bc_code += "\ndef getDFBC%d%d(x, bc_flag):\n" % (f, g) \
+                       + reduce(lambda a, b: a+"\n"+b, bc_cases)
+
+    for f in sorted(adv_flux_bcs):
+        bc_cases = ["    if %s:\n        return lambda x, t: %s\n" % (c, v)
+                    for c, v in adv_flux_bcs[f]]
+        bc_code += "\ndef get AFBC%d(x, bc_flag):\n" % (f,) \
+                   + reduce(lambda a, b: a+"\n"+b, bc_cases)
+
+    bc_code += "\ndirichletConditions = {}\n"
+    for f in sorted(diri_bcs):
+        bc_code += "dirichletConditions[%d] = getDiriBC%d\n" % (f, f)
+
+    bc_code += "\ndiffusiveFluxBCs = {}\n"
+    for f in sorted(diff_flux_bcs):
+        bc_code += "diffusiveFluxBCs[%d] = {}\n" % (f,)
+        for g in sorted(diff_flux_bcs[f]):
+            bc_code += "diffusiveFluxBCs[%d][%d] = getDFBC%d%d\n" % (f, g, f, g)
+
+    bc_code += "\nadvectiveFluxBCs = {}\n"
+    for f in sorted(adv_flux_bcs):
+        bc_code += "advectiveFluxBCs[%d] = getAFBC%d" % (f, f)
+
+
+    return(tc_class_str, bc_code)
 
 #  vim: foldmethod=marker

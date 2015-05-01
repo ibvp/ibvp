@@ -110,7 +110,7 @@ def test_heat():
             unknowns=[u],
             )
 
-    generate_proteus_problem_file(
+    (tc, bc_code) = generate_proteus_problem_file(
             system,
             "Heat",
             ambient_dim=2,
