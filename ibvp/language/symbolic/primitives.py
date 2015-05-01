@@ -43,7 +43,7 @@ class Expression(p.Expression):
         return StringifyMapper
 
 
-class DotProduct(p.Expression):
+class DotProduct(Expression):
     def __init__(self, left, right):
         self.left = left
         self.right = right
@@ -59,7 +59,7 @@ class IndicatorFunction(p.If):
         super(IndicatorFunction, self).__init__(condition, 1, 0)
 
 
-class ExclusiveIndicatorSum(p.Expression):
+class ExclusiveIndicatorSum(Expression):
     """
     .. attribute:: conditions_and_values
 

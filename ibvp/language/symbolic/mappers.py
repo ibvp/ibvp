@@ -203,6 +203,15 @@ class StringifyMapper(StringifyMapperBase):
     map_grad = map_div
     map_curl = map_div
 
+    def map_dot_product(self, expr, enclosing_prec):
+        return "Dot(%s, %s)" % (expr.left, expr.right)
+
+    def map_boundary_normal(self, expr, enclosing_prec):
+        return "n"
+
+    def map_boundary_normal_component(self, expr, enclosing_prec):
+        return "n[%d]" % (expr.ambient_axis,)
+
 
 class PrettyStringifyMapper(
         CSESplittingStringifyMapperMixin,
@@ -239,6 +248,9 @@ class DistributeMapper(DistributeMapperBase):
 
     map_vector_field = map_field
     map_parameter = map_field
+    map_boundary_normal = map_field
+    map_boundary_normal_component = map_field
+
 
 # }}}
 
@@ -354,6 +366,23 @@ class Scalarizer(OperatorBindingMixin, Dimensionalizer, EvaluationMapper):
                     self.rec(expr.left),
                     self.rec(expr.right)))
 
+    def map_comparison(self, expr, *args, **kwargs):
+        return type(expr)(
+            self.rec(expr.left, *args, **kwargs),
+            expr.operator,
+            self.rec(expr.right, *args, **kwargs))
+
+    def map_logical_not(self, expr, *args, **kwargs):
+        return type(expr)(
+            self.rec(expr.child, *args, **kwargs))
+
+    def map_logical_or(self, expr, *args, **kwargs):
+        return type(expr)(tuple(
+            self.rec(child, *args, **kwargs) for child in expr.children))
+
+    map_logical_and = map_logical_or
+
+
     # {{{ conventional vector calculus
 
     def map_vector_field(self, expr):
@@ -378,6 +407,7 @@ class Scalarizer(OperatorBindingMixin, Dimensionalizer, EvaluationMapper):
         return make_obj_array([
             p.DerivativeOperator(i)(rec_arg)
             for i in range(self.ambient_dim)])
+
 
     # }}}
 

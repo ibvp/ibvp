@@ -28,8 +28,8 @@ THE SOFTWARE.
 
 import numpy as np
 from ibvp.language.symbolic.mappers import (
-        DistributeMapper, CombineMapper,
-        differentiate)
+        DistributeMapper, CombineMapper, StringifyMapper,
+        differentiate, Scalarizer)
 from pytools import Record
 from ibvp.language.symbolic.util import pretty
 import ibvp.language.symbolic.primitives as p
@@ -47,6 +47,16 @@ class DependencyMapper(DepMapBase):
     def map_operator_binding(self, expr):
         return self.combine([
             self.rec(expr.op), self.rec(expr.argument)])
+
+    def map_dot_product(self, expr):
+        return self.combine([
+            self.rec(expr.left), self.rec(expr.right)])
+
+    def map_boundary_normal(self, expr):
+        return set()
+
+    def map_grad(self, expr):
+        return set()
 
 
 def classify_dep(expr):
@@ -274,6 +284,9 @@ class HasSomethingMapper(CombineMapper):
     def map_constant(self, expr):
         return False
 
+    def map_dot_product(self, expr):
+        return self.combine([expr.left, expr.right])
+
     map_field = map_constant
     map_derivative = map_constant
     map_time_derivative = map_constant
@@ -380,7 +393,7 @@ def generate_proteus_problem_file(bvp, clsnm, ambient_dim,
     # }}}
 
     from ibvp.language import scalarize
-    scalarized_bvp = scalarize(bvp, 2)
+    scalarized_bvp = scalarize(bvp, ambient_dim)
 
     #import ibvp.sym as sym
     #print(sym.pretty(scalarized_system.pde_system))
@@ -537,7 +550,8 @@ def generate_proteus_problem_file(bvp, clsnm, ambient_dim,
     from pytools import reverse_dictionary
     int2dep = reverse_dictionary(dep2int)
 
-    advect_deps = np.zeros((num_equations, num_equations), "O")
+    advect_deps = np.zeros((num_equations, num_equations),
+                           dtype=object)
     for i in range(num_equations):
         for j in range(num_equations):
             advect_deps[i, j] = int2dep[
@@ -653,20 +667,125 @@ def generate_proteus_problem_file(bvp, clsnm, ambient_dim,
 
     refs = "\n".join((spacer(x) for x in ref_list))
 
-    1/0
     # now we need to generate the boundary conditions
     bcs = bvp.boundary_conditions
+
+    unk_to_num = dict((y, x)
+                      for (x, y) in enumerate(scalar_unknowns))
+
+    diri_bcs = {}
+    diff_flux_bcs = dict((i, {}) for i in range(num_equations))
+    adv_flux_bcs = {}
+    
     for bc in bcs:
         if not isinstance(bc, p.ExclusiveIndicatorSum):
             bc = p.ExclusiveIndicatorSum((None, bc))
         for cond, val in bc.conditions_and_values:
-            if isinstance(val, p.Field):
-                pass
-            else:
-                pass
-            # Need to classify the boundary condition
-            # as to type, generate the code
+            # so I don't duplicate the logic of determining
+            # Dirichlet vs flux BC, I'll make homogeneous BC
+            # structurally into inhomogeneous ones by adding 0.
+            if isinstance(val, p.Field) \
+               or isinstance(val, p.DotProduct):
+                val = pp.Sum((val, 0))
+            if not isinstance(val, pp.Sum):
+                raise ValueError("Illegal BC")
 
+            print(val)
+
+            # there can only be one child of the sum that has
+            # field dependencies.  This is the term to analyze, and
+            # the rest sum to the value the BC takes
+            dmp = DependencyMapper()
+            bc_term = None
+            bc_value = 0
+            for child in val.children:
+                deps = dmp(child)
+                nfields = 0
+                for x in deps:
+                    if isinstance(x, p.Field):
+                        nfields += 1
+                if nfields == 1:
+                    if bc_term is None:
+                        bc_term = child
+                    else:
+                        raise ValueError("BC has two terms with fields")
+                elif nfields == 0:
+                    bc_value = bc_value + child
+                else:
+                    raise ValueError("BC has more than one field")
+
+            # now we look at the BC term and see what kind it is
+            if isinstance(bc_term, p.Field):
+                print("Dirichlet BC on field ", unk_to_num[bc_term.name])
+                # need to take apart the condition and figure out
+                # how to generate the function
+                print(type(cond))
+
+            elif isinstance(bc_term, p.DotProduct):
+                bc_terms_cur \
+                    = DistributeMapper()(Scalarizer(ambient_dim)(bc_term))
+                # rewrite each term in the form of (n[i], stuff)
+                # since I have to do that either way
+                normals_pulled_out = []
+                for term in bc_terms_cur.children:
+                    if not isinstance(term, pp.Product):
+                        raise ValueError("BC issue")
+                    ns = [x for x in term.children
+                          if isinstance(x, p.BoundaryNormalComponent)]
+                    assert len(ns) == 1
+                    rest = [x for x in term.children
+                            if not isinstance(x, p.BoundaryNormalComponent)]
+                    normals_pulled_out.append((ns[0],
+                                               reduce(lambda a, b: a*b,
+                                                      rest)))
+
+                print(bc_terms_cur)
+                if has_spatial_derivative(bc_term):
+                    print("That's a diffusive flux")
+                    coeff_matrix = np.zeros((ambient_dim, ambient_dim),
+                                            dtype=object)
+                    term_pot = -1
+
+                    for (n, t) in normals_pulled_out:
+                        coeff_row = n.ambient_axis
+
+                        coeff, der \
+                            = find_inner_deriv_and_coeff(t)
+                        pot_const, pot_expr = pick_off_constants(
+                            der.argument)
+                        pot_index = tc_storage.register_potential(pot_expr)
+                        if term_pot == -1:
+                            term_pot = pot_index
+                        elif term_pot != pot_index:
+                            raise ValueError("Problem with expanded BC")
+                        coeff_matrix[coeff_row, der.op.ambient_axis] \
+                            += coeff
+                    print(coeff_matrix)
+
+                    # Now look through transport coefficients and find
+                    # all the equations that have this term
+                    eqns_with_this_diffusive_term = []
+                    for k in range(num_equations):
+                        if np.all(tc_storage.diffusion[k, pot_index, :, :]
+                                  == coeff_matrix):
+                            eqns_with_this_diffusive_term.append(k)
+                    print("Equations with this diffusive_term: ",
+                          eqns_with_this_diffusive_term)
+
+                else:
+                    print("That's an advective flux")
+                    advective_flux = np.zeros((ambient_dim,), dtype=object)
+                    for (n, t) in normals_pulled_out:
+                        advective_flux[n.ambient_axis] += t
+
+                    # Now search through transport coefficients
+                    eqns_with_this_advective_term = []
+                    for k in range(num_equations):
+                        if np.all(tc_storage.advection[k, :]
+                                  == advective_flux):
+                            eqns_with_this_advective_term.append(k)
+                    print("Equations with this advective term: ",
+                          eqns_with_this_advective_term)
 
     tc_class_str = """
 from proteus.TransportCoefficients import TC_base
@@ -689,7 +808,6 @@ class %s(TC_base):
 %s
 %s
 """ % (clsnm, dep_st, repr(scalar_unknowns), num_equations, refs, assigns)
-
 
     return(tc_class_str)
 
