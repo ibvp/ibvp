@@ -382,9 +382,7 @@ class Scalarizer(OperatorBindingMixin, Dimensionalizer, EvaluationMapper):
 
     map_logical_and = map_logical_or
 
-
     # {{{ conventional vector calculus
-
     def map_vector_field(self, expr):
         return self.rec(p.make_field_vector(expr.name, self.ambient_dim))
 

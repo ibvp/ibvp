@@ -690,7 +690,7 @@ def generate_proteus_problem_file(bvp, clsnm, ambient_dim,
             if not isinstance(val, pp.Sum):
                 raise ValueError("Illegal BC")
 
-            print(val)
+            print(StringifyMapper()(cond))
 
             # there can only be one child of the sum that has
             # field dependencies.  This is the term to analyze, and

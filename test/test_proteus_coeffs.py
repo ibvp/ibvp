@@ -32,9 +32,14 @@ import ibvp.sym as sym
 from ibvp.language import PDESystem, BVP
 from ibvp.target.proteus import generate_proteus_problem_file
 
+import pymbolic.primitives as pp
+
+
+def eq(x, y):
+    return pp.Comparison(x, "==", y)
+
 
 # {{{ advection
-
 def test_advection():
     u = sym.Field("u")
 
@@ -97,8 +102,8 @@ def test_heat():
             pde_system=eqns,
             boundary_conditions=[
                 sym.ExclusiveIndicatorSum(
-                    (bc_flag == 1, u - 15),
-                    (bc_flag == 2,
+                    (eq(bc_flag, 1), u - 15),
+                    (eq(bc_flag, 2),
                         sym.dot(normal, sym.grad(u)) - 0),
                     )
                 ],
