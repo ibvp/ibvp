@@ -48,8 +48,9 @@ def test_advection():
     print(sym.pretty(eqns))
 
     print(generate_proteus_problem_file(
-            PDESystem(
+            BVP(
                 pde_system=eqns,
+                boundary_conditions=[],
                 unknowns=[u],
                 ),
             "Advection",
@@ -74,8 +75,9 @@ def test_burgers():
     print(sym.pretty(eqns))
 
     generate_proteus_problem_file(
-            PDESystem(
+            BVP(
                 pde_system=eqns,
+                boundary_conditions=[],
                 unknowns=[u],
                 ),
             "Burgers",
@@ -136,8 +138,9 @@ def test_parabolic_system():
     print(sym.pretty(eqns))
 
     generate_proteus_problem_file(
-            PDESystem(
+            BVP(
                 pde_system=eqns,
+                boundary_conditions=[],
                 unknowns=[u, v],
                 ),
             "ParabolicSystem",
@@ -165,8 +168,9 @@ def test_wave():
     print(sym.pretty(eqns))
 
     generate_proteus_problem_file(
-            PDESystem(
+            BVP(
                 pde_system=eqns,
+                boundary_conditions=[],
                 unknowns=[u, v],
                 ),
             "Wave",
@@ -199,8 +203,9 @@ def test_very_nonlinear_burgers():
     print(sym.pretty(eqns))
 
     print(generate_proteus_problem_file(
-            PDESystem(
+            BVP(
                 pde_system=eqns,
+                boundary_conditions=[],
                 unknowns=[u],
                 ),
             "Burgers",
@@ -234,8 +239,9 @@ def test_shallow_water_gc():
     print(sym.pretty(eqns))
 
     from ibvp.language import PDESystem
-    system = PDESystem(
-            pde_system=eqns,
+    system = BVP(
+        pde_system=eqns,
+        boundary_conditions=[],
             unknowns=[col_height, mom],
             )
 
