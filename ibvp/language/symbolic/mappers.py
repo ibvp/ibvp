@@ -27,6 +27,9 @@ THE SOFTWARE.
 
 from six.moves import range
 
+from pymbolic.mapper.dependency import (
+        DependencyMapper as DependencyMapperBase)
+
 from pymbolic.geometric_algebra.mapper import (
         IdentityMapper as IdentityMapperBase,
         CombineMapper as CombineMapperBase,
@@ -43,6 +46,8 @@ from pymbolic.geometric_algebra.mapper import (
         as NablaComponentToUnitVectorBase,
         DerivativeSourceFinder
         as DerivativeSourceFinderBase,
+        ConstantFoldingMapper
+        as ConstantFoldingMapperBase,
 
         )
 from pymbolic.mapper.differentiator import (
@@ -116,6 +121,10 @@ class Collector(CollectorBase, CombineMapper):
     map_time_derivative = map_field
     map_parameter = map_field
     map_derivative = map_field
+
+
+class DependencyMapper(Collector, DependencyMapperBase):
+    pass
 
 
 class WalkMapper(WalkMapperBase):
@@ -195,7 +204,8 @@ class PrettyStringifyMapper(
 class DistributeMapper(DistributeMapperBase):
     def __init__(self):
         super(DistributeMapper, self).__init__(
-                collector=lambda expr: expr)
+                collector=lambda expr: expr,
+                const_folder=ConstantFoldingMapper())
 
     def map_operator_binding(self, expr):
         rec_arg = self.rec(expr.argument)
@@ -366,6 +376,15 @@ class DifferentiationMapper(DifferentiationMapperBase):
 
 def differentiate(expr, var):
     return DifferentiationMapper(var)(expr)
+
+# }}}
+
+
+# {{{ constant folder
+
+class ConstantFoldingMapper(IdentityMapper, ConstantFoldingMapperBase):
+    def is_constant(self, expr):
+        return not bool(DependencyMapper()(expr))
 
 # }}}
 
