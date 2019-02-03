@@ -310,6 +310,10 @@ class Scalarizer(OperatorBindingMixin, Dimensionalizer, EvaluationMapper):
         EvaluationMapper.__init__(self)
         self._ambient_dim = ambient_dim
 
+    @property
+    def ambient_dim(self):
+        return self._ambient_dim
+
     def map_curl_binding(self, expr):
         raise NotImplementedError()
 
