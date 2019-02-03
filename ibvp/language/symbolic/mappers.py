@@ -167,7 +167,7 @@ class StringifyMapper(StringifyMapperBase):
         return "d/dt"
 
     def map_derivative(self, expr, enclosing_prec):
-        AXES = "xyz"
+        AXES = "xyz"  # noqa: N806
         try:
             return "d/d%s" % AXES[expr.ambient_axis]
         except IndexError:
@@ -179,9 +179,6 @@ class StringifyMapper(StringifyMapperBase):
     map_parameter = map_field
     map_vector_field = map_field
     map_multivector_field = map_field
-
-    def map_parameter(self, expr, enclosing_prec):
-        return expr.name
 
     def map_div(self, expr, enclosing_prec):
         return type(expr).__name__[1:].lower()
@@ -263,7 +260,7 @@ class EvaluationMapper(EvaluationMapperBase):
     map_curl = map_derivative
 
     def map_common_subexpression(self, expr):
-        return p.cse(
+        return pp.CommonSubexpression(
                 self.rec(expr.child),
                 expr.prefix,
                 expr.scope)
@@ -311,7 +308,7 @@ class Scalarizer(OperatorBindingMixin, Dimensionalizer, EvaluationMapper):
         # FIXME: Might be better to make 'ambient_dim' a per-domain
         # thing.
         EvaluationMapper.__init__(self)
-        self.ambient_dim = ambient_dim
+        self._ambient_dim = ambient_dim
 
     def map_curl_binding(self, expr):
         raise NotImplementedError()
