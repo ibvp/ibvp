@@ -35,9 +35,9 @@ from six.moves import range, intern
 
 
 class Expression(p.Expression):
-    def stringifier(self):
+    def make_stringifier(self, originating_stringifier=None):
         from ibvp.language.symbolic.mappers import StringifyMapper
-        return StringifyMapper
+        return StringifyMapper()
 
 
 # {{{ operators and binding
@@ -63,8 +63,8 @@ class ScalarizingOperator(Operator):
         if isinstance(expr, MultiVector):
             return expr.map(bind_one)
 
-        from pytools.obj_array import with_object_array_or_scalar
-        return with_object_array_or_scalar(bind_one, expr)
+        from pytools.obj_array import obj_array_vectorize
+        return obj_array_vectorize(bind_one, expr)
 
 
 class OperatorBinding(Expression):
@@ -121,9 +121,9 @@ def make_field_vector(name, components):
     if isinstance(components, int):
         components = list(range(components))
 
-    from pytools.obj_array import join_fields
+    from pytools.obj_array import flat_obj_array
     vfld = Field(name)
-    return join_fields(*[vfld.index(i) for i in components])
+    return flat_obj_array(*[vfld.index(i) for i in components])
 
 # }}}
 
@@ -144,6 +144,7 @@ class Function(p.Variable, Expression):
             return with_object_array_or_scalar(make_op, operand)
         else:
             return p.Variable.__call__(self, operand)
+
 
 real = Function("real")
 imag = Function("imag")
@@ -231,6 +232,7 @@ class TimeDerivativeOperator(ScalarizingOperator, LinearOperator):
 
     mapper_method = "map_time_derivative"
 
+
 d_dt = TimeDerivativeOperator()
 
 # }}}
@@ -258,6 +260,8 @@ class _Div(LinearOperator):
         return ()
 
     mapper_method = "map_div"
+
+
 div = _Div()
 
 
@@ -267,6 +271,7 @@ class _Grad(LinearOperator):
 
     mapper_method = "map_grad"
 
+
 grad = _Grad()
 
 
@@ -275,6 +280,7 @@ class _Curl(LinearOperator):
         return ()
 
     mapper_method = "map_curl"
+
 
 curl = _Curl()
 

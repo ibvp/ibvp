@@ -54,16 +54,16 @@ class DependencyMapper(DepMapBase):
 
 def classify_dep(expr):
     if expr:
-        deptype = 'linear'
+        deptype = "linear"
         dmapper = DependencyMapper()
         deps = dmapper(expr)
         if deps:
             for dep in deps:
                 if isinstance(dep, p.Field):
-                    deptype = 'nonlinear'
+                    deptype = "nonlinear"
                     break
     else:
-        deptype = 'constant'
+        deptype = "constant"
 
     return deptype
 
@@ -133,22 +133,22 @@ class TransportCoefficientStorage(object):
         import ibvp.sym as sym
 
         def dump_1d(title, thing):
-            mystr = 'Nonzero %s terms\n-----------------------\n' % (title,)
+            mystr = "Nonzero %s terms\n-----------------------\n" % (title,)
             for i, m in enumerate(thing):
                 if m:
                     mystr += "%10d: %s\n" % (i, sym.pretty(m))
-            mystr += '\n'
+            mystr += "\n"
             return mystr
 
         mystr = dump_1d("Mass", self.mass)
-        mystr += 'Nonzero Advection terms\n-----------------------\n'
+        mystr += "Nonzero Advection terms\n-----------------------\n"
         for i, bi in enumerate(self.advection):
             for j, bij in enumerate(bi):
                 if bij:
                     mystr += "%5d%5d: %s\n" % (i, j, sym.pretty(bij))
-        mystr += '\n'
+        mystr += "\n"
 
-        mystr += 'Nonzero Diffusion coefficients\n-------------------------\n'
+        mystr += "Nonzero Diffusion coefficients\n-------------------------\n"
         for i, ai in enumerate(self.diffusion):
             for j, aij in enumerate(ai):
                 for k, aijk in enumerate(aij):
@@ -157,7 +157,7 @@ class TransportCoefficientStorage(object):
                             mystr += ("%5d%5d%5d%5d: %s\n"
                                     % (i, j, k, ell, sym.pretty(aijkell)))
 
-        mystr += '\n'
+        mystr += "\n"
 
         mystr += dump_1d("Potential", self.potential)
 
@@ -401,8 +401,8 @@ def generate_proteus_problem_file(bvp, clsnm):
     def process_scalar_bin(holder, label):
         assign = []
         dassign = []
-        deplabels = np.zeros((num_equations, num_equations), 'O')
-        deplabels[:] = 'none'
+        deplabels = np.zeros((num_equations, num_equations), "O")
+        deplabels[:] = "none"
         for (i, x) in enumerate(holder):
             if x:
                 xstr = "c[('%s', %d)][:] = %s" % (label, i, x)
@@ -411,8 +411,8 @@ def generate_proteus_problem_file(bvp, clsnm):
                     dx = differentiate(x, psi)
                     if dx:
                         deplabels[i][j] = classify_dep(dx)
-                        if deplabels[i][j] == 'nonlinear' \
-                           or deplabels[i][j] == 'linear':
+                        if deplabels[i][j] == "nonlinear" \
+                           or deplabels[i][j] == "linear":
                             dxstr = "c[('d%s', %d, %d)][:] = %s" % (label, i, j, dx)
                             dassign.append(dxstr)
                     else:
@@ -424,7 +424,7 @@ def generate_proteus_problem_file(bvp, clsnm):
         = process_scalar_bin(tc_storage.mass, "m")
 
     for md in mass_deps.ravel():
-        if md == 'constant':
+        if md == "constant":
             raise Exception("Constant mass illegal")
 
     reaction_assigns, dreaction_assigns, reaction_deps \
@@ -436,8 +436,8 @@ def generate_proteus_problem_file(bvp, clsnm):
     advect_assigns = []
     dadvect_assigns = []
 
-    advect_deps_p = np.zeros((num_equations, num_equations, ambient_dim), 'O')
-    advect_deps_p[:] = 'none'
+    advect_deps_p = np.zeros((num_equations, num_equations, ambient_dim), "O")
+    advect_deps_p[:] = "none"
 
     for i, bi in enumerate(tc_storage.advection):
         for j, bij in enumerate(bi):
@@ -452,10 +452,10 @@ def generate_proteus_problem_file(bvp, clsnm):
                         dadvect_assigns.append(dbstr)
 
     # now "reduce" over the vector component dependences and take the worst.
-    dep2int = {'none': 0,
-               'constant':  1,
-               'linear':    2,
-               'nonlinear': 3}
+    dep2int = {"none": 0,
+               "constant":  1,
+               "linear":    2,
+               "nonlinear": 3}
     from pytools import reverse_dictionary
     int2dep = reverse_dictionary(dep2int)
 
@@ -474,9 +474,9 @@ def generate_proteus_problem_file(bvp, clsnm):
                             num_equations,
                             num_equations,
                             ambient_dim,
-                            ambient_dim), 'O')
+                            ambient_dim), "O")
 
-    diff_deps_p[:] = 'none'
+    diff_deps_p[:] = "none"
 
     for i, ai in enumerate(tc_storage.diffusion):
         for j, aij in enumerate(ai):
@@ -494,11 +494,11 @@ def generate_proteus_problem_file(bvp, clsnm):
                                         % (i, j, q, k, ell, da)
                                 ddiff_assigns.append(dastr)
                             else:
-                                diff_deps_p[i, j, q, k, ell] = 'constant'
+                                diff_deps_p[i, j, q, k, ell] = "constant"
 
     diff_deps = np.zeros((num_equations,
                           num_equations,
-                          num_equations), 'O')
+                          num_equations), "O")
 
     ddp = diff_deps_p.reshape((num_equations,
                                num_equations,
@@ -516,17 +516,17 @@ def generate_proteus_problem_file(bvp, clsnm):
     potential_assigns = []
     dpotential_assigns = []
 
-    phi_deps = np.zeros((num_equations, num_equations), 'O')
+    phi_deps = np.zeros((num_equations, num_equations), "O")
     for i, phi in enumerate(tc_storage.potential):
         for j, u in enumerate(unk_scalar_fields):
             if phi == u:
-                phi_deps[i, j] = 'u'
+                phi_deps[i, j] = "u"
             else:
                 phi_str = "c[('phi', %d)] = %s" % (i, phi)
                 potential_assigns.extend(phi_str)
-                D = differentiate(phi, u)
+                D = differentiate(phi, u)  # noqa: N806
                 if D:
-                    phi_deps[i, j] = 'nonlinear'
+                    phi_deps[i, j] = "nonlinear"
                     dphi_str = "c[('dphi', %d, %d)] = %s" % (i, j, D)
                     dpotential_assigns.extend(dphi_str)
 
@@ -545,7 +545,7 @@ def generate_proteus_problem_file(bvp, clsnm):
     # we dict-ify the dependencies so we can repr them.
     def dictify(arr):
         if len(arr.shape) == 1:
-            return dict((i, a) for (i, a) in enumerate(arr) if a and a != 'none')
+            return dict((i, a) for (i, a) in enumerate(arr) if a and a != "none")
         else:
             result = {}
             for i, a in enumerate(arr):
@@ -566,7 +566,7 @@ def generate_proteus_problem_file(bvp, clsnm):
 
     dep_st = "\n".join(dep_stmnts)
 
-    # This is for creating, e.g. u = c[('u',0)] before we make assignments
+    # This is for creating, e.g. u = c[("u",0)] before we make assignments
     # in evaluate so that we have references into the c dictionary for our
     # data.  This makes the pretty-printed code more readable.
     ref_list = []

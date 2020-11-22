@@ -1,8 +1,5 @@
 """Proteus target for IBVP translation."""
 
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import print_function
 
 __copyright__ = "Copyright (C) 2014 Rob Kirby, Andreas Kloeckner"
 

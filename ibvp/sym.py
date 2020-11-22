@@ -1,5 +1,3 @@
-from __future__ import division
-
 __copyright__ = "Copyright (C) 2010-2013 Andreas Kloeckner"
 
 __license__ = """
@@ -26,4 +24,4 @@ THE SOFTWARE.
 from ibvp.language.symbolic.primitives import *  # noqa
 from ibvp.language.symbolic.util import *  # noqa
 from pymbolic.primitives import Variable, make_sym_vector  # noqa
-from pytools.obj_array import make_obj_array, join_fields as join  # noqa
+from pytools.obj_array import make_obj_array, flat_obj_array as join  # noqa
