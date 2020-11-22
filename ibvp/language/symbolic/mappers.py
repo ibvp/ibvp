@@ -321,8 +321,8 @@ class Scalarizer(OperatorBindingMixin, Dimensionalizer, EvaluationMapper):
         if len(expr.shape) != 1:
             raise ValueError("only 1D numpy arrays are supported")
 
-        from pytools.obj_array import join_fields
-        return join_fields(*[
+        from pytools.obj_array import flat_obj_array
+        return flat_obj_array(*[
             self.rec(expr[i])
             for i in range(len(expr))])
 

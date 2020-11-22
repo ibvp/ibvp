@@ -26,4 +26,4 @@ THE SOFTWARE.
 from ibvp.language.symbolic.primitives import *  # noqa
 from ibvp.language.symbolic.util import *  # noqa
 from pymbolic.primitives import Variable, make_sym_vector  # noqa
-from pytools.obj_array import make_obj_array, join_fields as join  # noqa
+from pytools.obj_array import make_obj_array, flat_obj_array as join  # noqa

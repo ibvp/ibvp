@@ -17,26 +17,26 @@ def main():
           author="Andreas Kloeckner",
           author_email="inform@tiker.net",
           license="MIT",
-          url="http://wiki.tiker.net/IBVP",
+          url="https://github.com/ibvp/ibvp",
           classifiers=[
-              'Development Status :: 3 - Alpha',
-              'Intended Audience :: Developers',
-              'Intended Audience :: Other Audience',
-              'Intended Audience :: Science/Research',
-              'License :: OSI Approved :: MIT License',
-              'Natural Language :: English',
-              'Programming Language :: Python',
-              'Programming Language :: Python :: 2.5',
-              'Programming Language :: Python :: 2.6',
-              'Programming Language :: Python :: 2.7',
-              'Programming Language :: Python :: 3.3',
-              'Programming Language :: Python :: 3.4',
-              'Topic :: Scientific/Engineering',
-              'Topic :: Scientific/Engineering :: Information Analysis',
-              'Topic :: Scientific/Engineering :: Mathematics',
-              'Topic :: Scientific/Engineering :: Visualization',
-              'Topic :: Software Development :: Libraries',
-              'Topic :: Utilities',
+              "Development Status :: 3 - Alpha",
+              "Intended Audience :: Developers",
+              "Intended Audience :: Other Audience",
+              "Intended Audience :: Science/Research",
+              "License :: OSI Approved :: MIT License",
+              "Natural Language :: English",
+              "Programming Language :: Python",
+              "Programming Language :: Python :: 2.5",
+              "Programming Language :: Python :: 2.6",
+              "Programming Language :: Python :: 2.7",
+              "Programming Language :: Python :: 3.3",
+              "Programming Language :: Python :: 3.4",
+              "Topic :: Scientific/Engineering",
+              "Topic :: Scientific/Engineering :: Information Analysis",
+              "Topic :: Scientific/Engineering :: Mathematics",
+              "Topic :: Scientific/Engineering :: Visualization",
+              "Topic :: Software Development :: Libraries",
+              "Topic :: Utilities",
               ],
 
           packages=find_packages(),
@@ -49,5 +49,5 @@ def main():
               ])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
